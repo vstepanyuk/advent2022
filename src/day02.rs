@@ -76,21 +76,21 @@ impl FromStr for Hand {
 }
 
 impl DaySolution {
-    fn parse(&self, input: &str) -> Result<Vec<(Hand, Hand)>> {
+    fn parse(&self, input: &str) -> Vec<(Hand, Hand)> {
         input
             .lines()
             .map(|line| {
                 let (first, second) = line.split_once(' ').unwrap();
-                Ok((first.parse()?, second.parse()?))
+                (first.parse().unwrap(), second.parse().unwrap())
             })
-            .collect::<Result<Vec<_>>>()
+            .collect::<Vec<_>>()
     }
 }
 
 impl Solution for DaySolution {
     fn part1(&self, input: &str) -> Result<Box<dyn Display>> {
         let result = self
-            .parse(input)?
+            .parse(input)
             .iter()
             .map(|round| round.1.play(round.0))
             .sum::<i32>()
@@ -101,7 +101,7 @@ impl Solution for DaySolution {
 
     fn part2(&self, input: &str) -> Result<Box<dyn Display>> {
         let result = self
-            .parse(input)?
+            .parse(input)
             .iter()
             .map(|round| round.1.play_reverse(round.0))
             .sum::<i32>()

@@ -2,9 +2,10 @@ use aoc::{count, runners, Runnable};
 
 mod day01;
 mod day02;
+mod day03;
 
 fn main() {
-    runners!(day01, day02)
+    runners!(day01, day02, day03)
         .iter()
         .enumerate()
         .for_each(|(day, runner)| {
