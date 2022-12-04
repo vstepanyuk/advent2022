@@ -3,6 +3,8 @@ use std::{collections::HashSet, fmt::Display};
 use anyhow::Result;
 use aoc::{Runnable, Solution};
 use aoc_derive::Runner;
+use itertools::Itertools;
+use rayon::prelude::*;
 
 #[derive(Runner)]
 #[aoc(file = "inputs/day03.txt")]
@@ -29,7 +31,8 @@ impl DaySolution {}
 impl Solution for DaySolution {
     fn part1(&self, input: &str) -> Result<Box<dyn Display>> {
         let result = input
-            .split_whitespace()
+            .lines()
+            .par_bridge()
             .map(|line| {
                 let len = line.len();
 
@@ -45,21 +48,14 @@ impl Solution for DaySolution {
 
     fn part2(&self, input: &str) -> Result<Box<dyn Display>> {
         let result = input
-            .split_whitespace()
-            .collect::<Vec<_>>()
-            .chunks(3)
-            .map(|w| {
-                w.iter()
-                    .map(|line| HashSet::<char>::from_iter(line.chars()))
-                    .enumerate()
-                    .fold(HashSet::new(), |acc, (i, set)| {
-                        if i == 0 {
-                            set
-                        } else {
-                            acc.intersection(&set).cloned().collect()
-                        }
-                    })
-                    .iter()
+            .lines()
+            .tuples()
+            .map(|(a, b, c)| {
+                HashSet::<char>::from_iter(a.chars())
+                    .intersection(&HashSet::<char>::from_iter(b.chars()))
+                    .cloned()
+                    .collect::<HashSet<_>>()
+                    .intersection(&HashSet::<char>::from_iter(c.chars()))
                     .map(Priority::priority)
                     .sum::<usize>()
             })

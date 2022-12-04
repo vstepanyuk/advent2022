@@ -14,3 +14,4 @@ pathfinding = "4.0.0"
 aoc = { path = "../aoc" }
 aoc_derive = { path = "./aoc_derive" }
 paste = "1.0.9"
+rayon = "1.6.0"
