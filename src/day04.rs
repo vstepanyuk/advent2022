@@ -27,10 +27,6 @@ impl Deref for Section {
     }
 }
 
-trait StringRange {
-    fn to_range(&self) -> RangeInclusive<usize>;
-}
-
 impl FromStr for Section {
     type Err = anyhow::Error;
 
@@ -43,15 +39,6 @@ impl FromStr for Section {
         let end = end.parse()?;
 
         Ok(Self { inner: start..=end })
-    }
-}
-
-impl StringRange for str {
-    fn to_range(&self) -> RangeInclusive<usize> {
-        let (start, end) = self.split_once('-').unwrap();
-        let start = start.parse().unwrap();
-        let end = end.parse().unwrap();
-        start..=end
     }
 }
 
