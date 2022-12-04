@@ -1,5 +1,5 @@
 [package]
-name = "y2022"
+name = "aoc"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,11 +7,4 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.66"
-itertools = "0.10.5"
-memoize = "0.3.1"
-pathfinding = "4.0.0"
-
-aoc = { path = "./aoc" }
-aoc_derive = { path = "./aoc_derive" }
 paste = "1.0.9"
-rayon = "1.6.0"
