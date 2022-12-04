@@ -5,7 +5,7 @@ use std::{
 };
 
 use anyhow::Result;
-use aoc::{Runnable, Solution, SolutionPart};
+use aoc::{Runnable, Solution};
 use aoc_derive::Runner;
 
 #[derive(Runner)]
@@ -43,7 +43,10 @@ impl FromStr for Section {
 }
 
 impl DaySolution {
-    fn solve(&self, input: &str, part: SolutionPart) -> usize {
+    fn solve<F>(&self, input: &str, comparison: F) -> usize
+    where
+        F: Fn(bool, bool) -> bool,
+    {
         input
             .lines()
             .map(|line| {
@@ -53,17 +56,9 @@ impl DaySolution {
                     second.parse::<Section>().unwrap(),
                 )
             })
-            .filter(|(r1, r2)| match part {
-                SolutionPart::Part1 => {
-                    r1.contains(r2.start()) && r1.contains(r2.end())
-                        || r2.contains(r1.start()) && r2.contains(r1.end())
-                }
-                SolutionPart::Part2 => {
-                    r1.contains(r2.start())
-                        || r1.contains(r2.end())
-                        || r2.contains(r1.start())
-                        || r2.contains(r1.end())
-                }
+            .filter(|(r1, r2)| {
+                comparison(r1.contains(r2.start()), r1.contains(r2.end()))
+                    || comparison(r2.contains(r1.start()), r2.contains(r1.end()))
             })
             .count()
     }
@@ -71,11 +66,11 @@ impl DaySolution {
 
 impl Solution for DaySolution {
     fn part1(&self, input: &str) -> Result<Box<dyn Display>> {
-        Ok(Box::new(self.solve(input, SolutionPart::Part1)))
+        Ok(Box::new(self.solve(input, |a, b| a && b)))
     }
 
     fn part2(&self, input: &str) -> Result<Box<dyn Display>> {
-        Ok(Box::new(self.solve(input, SolutionPart::Part2)))
+        Ok(Box::new(self.solve(input, |a, b| a || b)))
     }
 }
 
