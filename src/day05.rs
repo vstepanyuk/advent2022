@@ -58,7 +58,7 @@ impl DaySolution {
 
         stacks
             .iter()
-            .map(|stack| stack.front().unwrap())
+            .map_while(|stack| stack.front())
             .collect::<String>()
     }
 }
