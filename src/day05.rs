@@ -18,8 +18,7 @@ impl DaySolution {
             vec![VecDeque::new(); stacks_num],
             |mut stacks, line: &str| {
                 for (i, stack) in stacks.iter_mut().enumerate().take(stacks_num) {
-                    let start = 1 + i * 4;
-                    let item = line[start..].chars().next().unwrap();
+                    let item = line[i * 4 + 1..].chars().next().unwrap();
                     if !item.is_whitespace() {
                         stack.push_back(item);
                     }
