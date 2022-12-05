@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, fmt::Display};
+use std::{collections::VecDeque, fmt::Display, str::FromStr};
 
 use anyhow::Result;
 use aoc::{Runnable, Solution};
@@ -8,6 +8,44 @@ use aoc_derive::Runner;
 #[aoc(file = "inputs/day05.txt")]
 pub struct DaySolution {
     pub filename: &'static str,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct Action {
+    count: usize,
+    from: usize,
+    to: usize,
+}
+
+impl FromStr for Action {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        if !s.starts_with("move ") {
+            return Err(anyhow::anyhow!("Couldn't parse action"));
+        }
+
+        let mut parts = s.split_whitespace();
+
+        let count = parts
+            .nth(1)
+            .ok_or_else(|| anyhow::anyhow!("Couldn't parse 'count'"))?
+            .parse()?;
+
+        let from = parts
+            .nth(1)
+            .ok_or_else(|| anyhow::anyhow!("Couldn't parse 'from'"))?
+            .parse::<usize>()?
+            - 1;
+
+        let to = parts
+            .nth(1)
+            .ok_or_else(|| anyhow::anyhow!("Couldn't parse 'to'"))?
+            .parse::<usize>()?
+            - 1;
+
+        Ok(Action { count, from, to })
+    }
 }
 
 impl DaySolution {
@@ -29,31 +67,26 @@ impl DaySolution {
         )
     }
 
-    fn parse_actions(&self, input: &str) -> Vec<(usize, usize, usize)> {
-        input
-            .lines()
-            .skip_while(|line| !line.starts_with("move"))
-            .map(|line| {
-                let mut parts = line.split(' ');
-
-                let size = parts.nth(1).unwrap().parse().unwrap();
-                let from = parts.nth(1).unwrap().parse::<usize>().unwrap();
-                let to = parts.nth(1).unwrap().parse::<usize>().unwrap();
-                (size, from - 1, to - 1)
-            })
-            .collect()
+    fn parse_actions(&self, input: &str) -> Vec<Action> {
+        input.lines().flat_map(|line| line.parse().ok()).collect()
     }
 
-    fn rearrange<F>(&self, input: &str, mut action: F) -> String
+    fn rearrange<F>(&self, input: &str, mut get_item: F) -> String
     where
-        F: FnMut(&mut Vec<VecDeque<char>>, usize, usize, usize),
+        F: FnMut(&mut VecDeque<char>) -> Option<char>,
     {
         let mut stacks = self.parse_stacks(input);
         let actions = self.parse_actions(input);
 
-        for (size, from, to) in actions {
-            action(&mut stacks, from, to, size);
-        }
+        actions.iter().for_each(|action| {
+            let mut tmp = stacks[action.from]
+                .drain(..action.count)
+                .collect::<VecDeque<_>>();
+
+            while let Some(item) = get_item(&mut tmp) {
+                stacks[action.to].push_front(item);
+            }
+        });
 
         stacks
             .iter()
@@ -64,28 +97,13 @@ impl DaySolution {
 
 impl Solution for DaySolution {
     fn part1(&self, input: &str) -> Result<Box<dyn Display>> {
-        let result = self.rearrange(input, |stacks, from, to, size| {
-            for _ in 0..size {
-                let item = stacks[from].pop_front().unwrap();
-                stacks[to].push_front(item);
-            }
-        });
+        let result = self.rearrange(input, VecDeque::pop_front);
 
         Ok(Box::new(result))
     }
 
     fn part2(&self, input: &str) -> Result<Box<dyn Display>> {
-        let result = self.rearrange(input, |stacks, from, to, size| {
-            let mut tmp = VecDeque::new();
-            for _ in 0..size {
-                let item = stacks[from].pop_front().unwrap();
-                tmp.push_back(item);
-            }
-
-            while let Some(item) = tmp.pop_back() {
-                stacks[to].push_front(item);
-            }
-        });
+        let result = self.rearrange(input, VecDeque::pop_back);
 
         Ok(Box::new(result))
     }
