@@ -12,24 +12,22 @@ pub struct DaySolution {
 
 impl DaySolution {
     fn parse_stacks(&self, input: &str) -> Vec<VecDeque<char>> {
-        let stacks_num = (input.chars().take_while(|c| *c != '\n').count() + 1) / 4;
-        let mut stacks = vec![VecDeque::new(); stacks_num];
+        let stacks_num = (input.lines().next().unwrap().len() + 1) / 4;
 
-        for line in input.lines() {
-            if !line.contains('[') {
-                break;
-            }
-
-            for (i, stack) in stacks.iter_mut().enumerate().take(stacks_num) {
-                let start = 1 + i * 4;
-                let item = line[start..].chars().next().unwrap();
-                if !item.is_whitespace() {
-                    stack.push_back(item);
+        input.lines().take_while(|line| line.contains('[')).fold(
+            vec![VecDeque::new(); stacks_num],
+            |mut stacks, line: &str| {
+                for (i, stack) in stacks.iter_mut().enumerate().take(stacks_num) {
+                    let start = 1 + i * 4;
+                    let item = line[start..].chars().next().unwrap();
+                    if !item.is_whitespace() {
+                        stack.push_back(item);
+                    }
                 }
-            }
-        }
 
-        stacks
+                stacks
+            },
+        )
     }
 
     fn parse_actions(&self, input: &str) -> Vec<(usize, usize, usize)> {
@@ -39,8 +37,6 @@ impl DaySolution {
             .map(|line| {
                 let mut parts = line.split(' ');
 
-                // println!("{:?}", parts);
-
                 let size = parts.nth(1).unwrap().parse().unwrap();
                 let from = parts.nth(1).unwrap().parse::<usize>().unwrap();
                 let to = parts.nth(1).unwrap().parse::<usize>().unwrap();
@@ -48,45 +44,49 @@ impl DaySolution {
             })
             .collect()
     }
-}
 
-impl Solution for DaySolution {
-    fn part1(&self, input: &str) -> Result<Box<dyn Display>> {
+    fn rearrange<F>(&self, input: &str, mut action: F) -> String
+    where
+        F: FnMut(&mut Vec<VecDeque<char>>, usize, usize, usize),
+    {
         let mut stacks = self.parse_stacks(input);
         let actions = self.parse_actions(input);
 
         for (size, from, to) in actions {
+            action(&mut stacks, from, to, size);
+        }
+
+        stacks
+            .iter()
+            .map(|stack| stack.front().unwrap())
+            .collect::<String>()
+    }
+}
+
+impl Solution for DaySolution {
+    fn part1(&self, input: &str) -> Result<Box<dyn Display>> {
+        let result = self.rearrange(input, |stacks, from, to, size| {
             for _ in 0..size {
                 let item = stacks[from].pop_front().unwrap();
                 stacks[to].push_front(item);
             }
-        }
-
-        let result = stacks
-            .iter()
-            .map(|stack| stack.front().unwrap())
-            .collect::<String>();
+        });
 
         Ok(Box::new(result))
     }
 
     fn part2(&self, input: &str) -> Result<Box<dyn Display>> {
-        let mut stacks = self.parse_stacks(input);
-        let actions = self.parse_actions(input);
-
-        for (size, from, to) in actions {
+        let result = self.rearrange(input, |stacks, from, to, size| {
             let mut tmp = VecDeque::new();
             for _ in 0..size {
                 let item = stacks[from].pop_front().unwrap();
                 tmp.push_back(item);
             }
 
-            for _ in 0..size {
-                stacks[to].push_front(tmp.pop_back().unwrap());
+            while let Some(item) = tmp.pop_back() {
+                stacks[to].push_front(item);
             }
-        }
-
-        let result = stacks.iter().map(|stack| stack[0]).collect::<String>();
+        });
 
         Ok(Box::new(result))
     }
