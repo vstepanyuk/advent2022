@@ -1,8 +1,9 @@
-use std::{collections::HashSet, fmt::Display};
+use std::fmt::Display;
 
 use anyhow::Result;
 use aoc::{Runnable, Solution};
 use aoc_derive::Runner;
+use itertools::Itertools;
 
 #[derive(Runner)]
 #[aoc(file = "inputs/day06.txt")]
@@ -16,13 +17,7 @@ impl DaySolution {
             .as_bytes()
             .windows(size)
             .enumerate()
-            .find_map(|(pos, chars)| {
-                if HashSet::<u8>::from_iter(chars.iter().cloned()).len() == size {
-                    Some(pos + size)
-                } else {
-                    None
-                }
-            })
+            .find_map(|(pos, chars)| chars.iter().all_unique().then_some(pos + size))
     }
 }
 
