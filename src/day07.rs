@@ -1,4 +1,4 @@
-use std::{cmp::Reverse, collections::BinaryHeap, fmt::Display, str::FromStr};
+use std::{fmt::Display, str::FromStr};
 
 use anyhow::Result;
 use aoc::{Runnable, Solution};
@@ -41,31 +41,32 @@ impl FromStr for ShellLogEntry {
 }
 
 impl DaySolution {
-    fn dir_sizes(&self, entries: &[ShellLogEntry]) -> BinaryHeap<Reverse<usize>> {
+    fn dir_sizes(&self, entries: &[ShellLogEntry]) -> Vec<usize> {
         let mut stack = vec![];
-        let mut sizes = BinaryHeap::new();
+        let mut sizes = vec![];
 
         for entry in entries {
             match entry {
                 ShellLogEntry::ChangeDirCommand(dir) => {
                     if dir == ".." {
                         let value = stack.pop().unwrap();
-                        sizes.push(Reverse(value));
-                        stack.last_mut().map(|v| *v += value);
+                        sizes.push(value);
+
+                        _ = stack.last_mut().map(|v| *v += value);
                     } else {
                         stack.push(0);
                     }
                 }
                 ShellLogEntry::File(_, size) => {
-                    stack.last_mut().map(|v| *v += size);
+                    _ = stack.last_mut().map(|v| *v += size);
                 }
                 _ => {}
             }
         }
 
         while let Some(size) = stack.pop() {
-            sizes.push(Reverse(size));
-            stack.last_mut().map(|v| *v += size);
+            sizes.push(size);
+            _ = stack.last_mut().map(|v| *v += size);
         }
 
         sizes
@@ -73,14 +74,14 @@ impl DaySolution {
 
     fn solve<F>(&self, input: &str, mut solver: F) -> Result<usize>
     where
-        F: FnMut(&mut BinaryHeap<Reverse<usize>>) -> Result<usize>,
+        F: FnMut(&[usize]) -> Result<usize>,
     {
         let log = input
             .lines()
             .filter_map(|l| l.parse::<ShellLogEntry>().ok())
             .collect::<Vec<_>>();
 
-        solver(&mut self.dir_sizes(&log))
+        solver(&self.dir_sizes(&log))
     }
 }
 
@@ -88,11 +89,7 @@ impl Solution for DaySolution {
     fn part1(&self, input: &str) -> Result<Box<dyn Display>> {
         let result = self
             .solve(input, |sizes| {
-                Ok(sizes
-                    .iter()
-                    .map(|v| v.0)
-                    .filter(|v| *v <= 100000)
-                    .sum::<usize>())
+                Ok(sizes.iter().filter(|&&v| v <= 100000).sum::<usize>())
             })
             .map(Box::new)?;
 
@@ -102,15 +99,14 @@ impl Solution for DaySolution {
     fn part2(&self, input: &str) -> Result<Box<dyn Display>> {
         let result = self
             .solve(input, |sizes| {
-                let free = 70000000 - sizes.iter().last().unwrap().0;
+                let mut sizes = sizes.to_owned();
+                sizes.sort();
 
-                while let Some(Reverse(result)) = sizes.pop() {
-                    if free + result >= 30000000 {
-                        return Ok(result);
-                    }
-                }
-
-                Err(anyhow::anyhow!("No result found"))
+                let free = 70000000 - sizes.iter().last().unwrap();
+                sizes
+                    .iter()
+                    .find_map(|&v| (free + v >= 30000000).then_some(v))
+                    .ok_or(anyhow::anyhow!("No result found"))
             })
             .map(Box::new)?;
 
