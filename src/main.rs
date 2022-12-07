@@ -6,13 +6,14 @@ mod day03;
 mod day04;
 mod day05;
 mod day06;
+mod day07;
 
 fn main() {
     let day = std::env::args()
         .nth(1)
         .and_then(|v| v.parse::<usize>().ok());
 
-    runners!(day01, day02, day03, day04, day05, day06)
+    runners!(day01, day02, day03, day04, day05, day06, day07)
         .iter()
         .enumerate()
         .filter(|(d, _)| day.map(|day| day - 1 == *d).unwrap_or(true))
