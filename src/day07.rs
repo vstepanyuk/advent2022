@@ -1,14 +1,8 @@
-use std::{
-    cmp::Reverse,
-    collections::{BinaryHeap, HashMap},
-    fmt::Display,
-    str::FromStr,
-};
+use std::{cmp::Reverse, collections::BinaryHeap, fmt::Display, str::FromStr};
 
 use anyhow::Result;
 use aoc::{Runnable, Solution};
 use aoc_derive::Runner;
-use itertools::Itertools;
 
 #[derive(Runner)]
 #[aoc(file = "inputs/day07.txt")]
@@ -48,7 +42,6 @@ impl FromStr for ShellLogEntry {
 
 impl DaySolution {
     fn recursive(
-        &self,
         entries: &[ShellLogEntry],
         start: usize,
         results: &mut BinaryHeap<Reverse<usize>>,
@@ -62,7 +55,7 @@ impl DaySolution {
                     if dir == ".." {
                         break;
                     } else {
-                        let (new_index, size) = self.recursive(entries, index + 1, results);
+                        let (new_index, size) = Self::recursive(entries, index + 1, results);
                         index = new_index;
                         total_size += size;
                     }
@@ -79,45 +72,54 @@ impl DaySolution {
         results.push(Reverse(total_size));
         (index, total_size)
     }
+
+    fn solve<F>(&self, input: &str, mut solver: F) -> Result<usize>
+    where
+        F: FnMut(&mut BinaryHeap<Reverse<usize>>) -> Result<usize>,
+    {
+        let log = input
+            .lines()
+            .filter_map(|l| l.parse::<ShellLogEntry>().ok())
+            .collect::<Vec<_>>();
+
+        let mut results = BinaryHeap::new();
+        _ = Self::recursive(&log, 0, &mut results);
+
+        solver(&mut results)
+    }
 }
 
 impl Solution for DaySolution {
     fn part1(&self, input: &str) -> Result<Box<dyn Display>> {
-        let log = input
-            .lines()
-            .map(|l| l.parse::<ShellLogEntry>().unwrap())
-            .collect::<Vec<_>>();
+        let result = self
+            .solve(input, |sizes| {
+                Ok(sizes
+                    .iter()
+                    .map(|v| v.0)
+                    .filter(|v| *v <= 100000)
+                    .sum::<usize>())
+            })
+            .map(Box::new)?;
 
-        let mut results = BinaryHeap::new();
-        _ = self.recursive(&log, 0, &mut results);
-
-        let result = results
-            .iter()
-            .map(|v| v.0)
-            .filter(|v| *v <= 100000)
-            .sum::<usize>();
-
-        Ok(Box::new(result))
+        Ok(result)
     }
 
     fn part2(&self, input: &str) -> Result<Box<dyn Display>> {
-        let log = input
-            .lines()
-            .map(|l| l.parse::<ShellLogEntry>().unwrap())
-            .collect::<Vec<_>>();
+        let result = self
+            .solve(input, |sizes| {
+                let free = 70000000 - sizes.iter().last().unwrap().0;
 
-        let mut results = BinaryHeap::new();
-        _ = self.recursive(&log, 0, &mut results);
+                while let Some(Reverse(result)) = sizes.pop() {
+                    if free + result >= 30000000 {
+                        return Ok(result);
+                    }
+                }
 
-        let free = 70000000 - results.iter().last().unwrap().0;
+                Err(anyhow::anyhow!("No result found"))
+            })
+            .map(Box::new)?;
 
-        while let Some(Reverse(result)) = results.pop() {
-            if free + result >= 30000000 {
-                return Ok(Box::new(result));
-            }
-        }
-
-        Ok(Box::new(""))
+        Ok(result)
     }
 }
 
