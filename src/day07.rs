@@ -41,36 +41,34 @@ impl FromStr for ShellLogEntry {
 }
 
 impl DaySolution {
-    fn recursive(
-        entries: &[ShellLogEntry],
-        start: usize,
-        results: &mut BinaryHeap<Reverse<usize>>,
-    ) -> (usize, usize) {
-        let mut index = start;
-        let mut total_size = 0;
+    fn dir_sizes(&self, entries: &[ShellLogEntry]) -> BinaryHeap<Reverse<usize>> {
+        let mut stack = vec![];
+        let mut sizes = BinaryHeap::new();
 
-        while index < entries.len() {
-            match &entries[index] {
+        for entry in entries {
+            match entry {
                 ShellLogEntry::ChangeDirCommand(dir) => {
                     if dir == ".." {
-                        break;
+                        let value = stack.pop().unwrap();
+                        sizes.push(Reverse(value));
+                        stack.last_mut().map(|v| *v += value);
                     } else {
-                        let (new_index, size) = Self::recursive(entries, index + 1, results);
-                        index = new_index;
-                        total_size += size;
+                        stack.push(0);
                     }
                 }
                 ShellLogEntry::File(_, size) => {
-                    total_size += size;
+                    stack.last_mut().map(|v| *v += size);
                 }
                 _ => {}
             }
-
-            index += 1;
         }
 
-        results.push(Reverse(total_size));
-        (index, total_size)
+        while let Some(size) = stack.pop() {
+            sizes.push(Reverse(size));
+            stack.last_mut().map(|v| *v += size);
+        }
+
+        sizes
     }
 
     fn solve<F>(&self, input: &str, mut solver: F) -> Result<usize>
@@ -82,10 +80,7 @@ impl DaySolution {
             .filter_map(|l| l.parse::<ShellLogEntry>().ok())
             .collect::<Vec<_>>();
 
-        let mut results = BinaryHeap::new();
-        _ = Self::recursive(&log, 0, &mut results);
-
-        solver(&mut results)
+        solver(&mut self.dir_sizes(&log))
     }
 }
 
