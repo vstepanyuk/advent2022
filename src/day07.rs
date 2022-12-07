@@ -1,4 +1,9 @@
-use std::{collections::HashMap, fmt::Display, str::FromStr};
+use std::{
+    cmp::Reverse,
+    collections::{BinaryHeap, HashMap},
+    fmt::Display,
+    str::FromStr,
+};
 
 use anyhow::Result;
 use aoc::{Runnable, Solution};
@@ -42,69 +47,77 @@ impl FromStr for ShellLogEntry {
 }
 
 impl DaySolution {
-    fn parse(&self, input: &str) -> Result<HashMap<Vec<String>, usize>> {
-        let mut result = HashMap::new();
-        let mut path = vec![];
+    fn recursive(
+        &self,
+        entries: &[ShellLogEntry],
+        start: usize,
+        results: &mut BinaryHeap<Reverse<usize>>,
+    ) -> (usize, usize) {
+        let mut index = start;
+        let mut total_size = 0;
 
-        for line in input.lines() {
-            let item = line.parse::<ShellLogEntry>()?;
-
-            match item {
-                ShellLogEntry::ListCommand => {}
+        while index < entries.len() {
+            match &entries[index] {
                 ShellLogEntry::ChangeDirCommand(dir) => {
                     if dir == ".." {
-                        _ = path.pop();
+                        break;
                     } else {
-                        path.push(dir);
+                        let (new_index, size) = self.recursive(entries, index + 1, results);
+                        index = new_index;
+                        total_size += size;
                     }
                 }
-                ShellLogEntry::Directory(_dir) => {}
-                ShellLogEntry::File(_file, size) => {
-                    self.update_size(&mut result, path.clone(), size);
+                ShellLogEntry::File(_, size) => {
+                    total_size += size;
                 }
+                _ => {}
             }
+
+            index += 1;
         }
 
-        Ok(result)
-    }
-
-    fn update_size(
-        &self,
-        result: &mut HashMap<Vec<String>, usize>,
-        path: Vec<String>,
-        size: usize,
-    ) {
-        *result.entry(path.clone()).or_insert(0) += size;
-
-        for i in 1..path.len() {
-            *result.entry(path[0..i].to_owned()).or_insert(0) += size;
-        }
+        results.push(Reverse(total_size));
+        (index, total_size)
     }
 }
 
 impl Solution for DaySolution {
     fn part1(&self, input: &str) -> Result<Box<dyn Display>> {
-        let result = self.parse(input)?;
+        let log = input
+            .lines()
+            .map(|l| l.parse::<ShellLogEntry>().unwrap())
+            .collect::<Vec<_>>();
 
-        Ok(Box::new(
-            result
-                .values()
-                .filter(|&size| *size <= 100000)
-                .sum::<usize>(),
-        ))
+        let mut results = BinaryHeap::new();
+        _ = self.recursive(&log, 0, &mut results);
+
+        let result = results
+            .iter()
+            .map(|v| v.0)
+            .filter(|v| *v <= 100000)
+            .sum::<usize>();
+
+        Ok(Box::new(result))
     }
 
     fn part2(&self, input: &str) -> Result<Box<dyn Display>> {
-        let result = self.parse(input)?;
-        let free = 70000000 - result.get(&vec!["/".to_string()]).unwrap();
+        let log = input
+            .lines()
+            .map(|l| l.parse::<ShellLogEntry>().unwrap())
+            .collect::<Vec<_>>();
 
-        let a = *result
-            .values()
-            .sorted()
-            .find(|&&v| free + v >= 30000000)
-            .unwrap();
+        let mut results = BinaryHeap::new();
+        _ = self.recursive(&log, 0, &mut results);
 
-        Ok(Box::new(a))
+        let free = 70000000 - results.iter().last().unwrap().0;
+
+        while let Some(Reverse(result)) = results.pop() {
+            if free + result >= 30000000 {
+                return Ok(Box::new(result));
+            }
+        }
+
+        Ok(Box::new(""))
     }
 }
 
