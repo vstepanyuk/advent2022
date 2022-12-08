@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, VecDeque},
-    fmt::Display,
-};
+use std::fmt::Display;
 
 use anyhow::Result;
 use aoc::{Runnable, Solution};
@@ -20,6 +17,7 @@ impl DaySolution {}
 impl Solution for DaySolution {
     fn part1(&self, input: &str) -> Result<Box<dyn Display>> {
         let matrix: Matrix<u8> = Matrix::from(input).unwrap();
+
         let count = matrix
             .iter()
             .filter(|&(v, (x, y))| {
@@ -35,33 +33,31 @@ impl Solution for DaySolution {
     }
 
     fn part2(&self, input: &str) -> Result<Box<dyn Display>> {
-        let matrix: Matrix<u8> = Matrix::from(input).unwrap();
+        let max_scenic = Matrix::<u8>::from(input).unwrap().iter_with_self().fold(
+            0,
+            |max_scenic, (v, (x, y), matrix)| {
+                MATRIX_NEIGHBOURS_4
+                    .iter()
+                    .fold(1, |result, (dx, dy)| {
+                        let mut nx = x as i32;
+                        let mut ny = y as i32;
+                        let mut count = 0;
 
-        let mut max_scenic = 0;
+                        while let Some(value) = matrix.get(nx + dx, ny + dy) {
+                            count += 1;
 
-        matrix.iter().for_each(|(v, (x, y))| {
-            let mut result = 1;
+                            nx += dx;
+                            ny += dy;
 
-            for (dx, dy) in MATRIX_NEIGHBOURS_4.iter() {
-                let mut nx = x as i32;
-                let mut ny = y as i32;
-                let mut count = 0;
-
-                while let Some(value) = matrix.get(nx + dx, ny + dy) {
-                    count += 1;
-
-                    nx += dx;
-                    ny += dy;
-
-                    if value >= v {
-                        break;
-                    }
-                }
-                result *= count;
-            }
-
-            max_scenic = max_scenic.max(result);
-        });
+                            if value >= v {
+                                break;
+                            }
+                        }
+                        result * count
+                    })
+                    .max(max_scenic)
+            },
+        );
 
         Ok(Box::new(max_scenic))
     }
