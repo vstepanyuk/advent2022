@@ -41,7 +41,7 @@ impl FromStr for ShellLogEntry {
 }
 
 impl DaySolution {
-    fn dir_sizes(&self, entries: &[ShellLogEntry]) -> Vec<usize> {
+    fn dir_sizes(&self, entries: impl Iterator<Item = ShellLogEntry>) -> Vec<usize> {
         let mut stack = vec![];
         let mut sizes = vec![];
 
@@ -78,10 +78,9 @@ impl DaySolution {
     {
         let log = input
             .lines()
-            .filter_map(|l| l.parse::<ShellLogEntry>().ok())
-            .collect::<Vec<_>>();
+            .filter_map(|l| l.parse::<ShellLogEntry>().ok());
 
-        solver(&self.dir_sizes(&log))
+        solver(&self.dir_sizes(log))
     }
 }
 

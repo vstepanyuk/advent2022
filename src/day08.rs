@@ -16,11 +16,10 @@ impl DaySolution {}
 
 impl Solution for DaySolution {
     fn part1(&self, input: &str) -> Result<Box<dyn Display>> {
-        let matrix: Matrix<u8> = Matrix::from(input).unwrap();
-
-        let count = matrix
-            .iter()
-            .filter(|&(v, (x, y))| {
+        let count = Matrix::<u8>::from(input)
+            .unwrap()
+            .iter_with_self()
+            .filter(|&(v, (x, y), matrix)| {
                 (x == 0 || y == 0 || x == matrix.width - 1 || y == matrix.height - 1)
                     || (0..x).all(|x| matrix.get(x, y).unwrap() < v)
                     || (x + 1..matrix.width).all(|x| matrix.get(x, y).unwrap() < v)
