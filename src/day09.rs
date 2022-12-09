@@ -57,31 +57,6 @@ impl Rope {
     }
 }
 
-// impl std::fmt::Debug for Rope {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         let size = 20;
-//         for y in -size..size {
-//             for x in -size..size {
-//                 let p = Position(x, y);
-//                 if let Some((i, _)) = self.0.iter().find_position(|pp| **pp == p) {
-//                     if i == 0 {
-//                         write!(f, "H")?;
-//                     } else {
-//                         write!(f, "{}", i)?;
-//                     }
-//                 } else if x == 0 && y == 0 {
-//                     write!(f, "s")?;
-//                 } else {
-//                     write!(f, ".")?;
-//                 }
-//             }
-//             writeln!(f)?;
-//         }
-
-//         Ok(())
-//     }
-// }
-
 impl Position {
     fn touching(&self, other: &Self) -> bool {
         let (dx, dy) = (self.0 - other.0, self.1 - other.1);
