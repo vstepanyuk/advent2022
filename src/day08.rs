@@ -7,7 +7,7 @@ use aoc_derive::Runner;
 use crate::matrix::{Matrix, MATRIX_NEIGHBOURS_4};
 
 #[derive(Runner)]
-#[aoc(file = "inputs/day08.txt")]
+#[aoc(file = "inputs/day08_demo.txt")]
 pub struct DaySolution {
     pub filename: &'static str,
 }
