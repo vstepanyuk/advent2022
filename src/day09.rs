@@ -93,11 +93,6 @@ impl FromStr for Move {
 }
 
 impl Solution for DaySolution {
-    /*
-    Part 1: 6098
-    Part 2: 2597
-    */
-
     fn part1(&self, input: &str) -> Result<Box<dyn Display>> {
         let mut rope = Rope::new(2);
         let mut history = HashSet::new();
