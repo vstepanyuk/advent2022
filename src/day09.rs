@@ -55,6 +55,10 @@ impl Rope {
             }
         }
     }
+
+    fn last(&self) -> Option<Position> {
+        self.0.last().copied()
+    }
 }
 
 impl Position {
@@ -101,7 +105,9 @@ impl Solution for DaySolution {
             let r#move = line.parse::<Move>()?;
             for _ in 0..r#move.steps {
                 rope.move_direction(r#move.direction);
-                history.insert(*rope.0.last().unwrap());
+                if let Some(last) = rope.last() {
+                    history.insert(last);
+                }
             }
         }
 
@@ -116,7 +122,9 @@ impl Solution for DaySolution {
             let r#move = line.parse::<Move>()?;
             for _ in 0..r#move.steps {
                 rope.move_direction(r#move.direction);
-                history.insert(*rope.0.last().unwrap());
+                if let Some(last) = rope.last() {
+                    history.insert(last);
+                }
             }
         }
 
@@ -132,7 +140,4 @@ mod test {
 
     day_test!(day09, Part1, "inputs/day09_demo.txt", "13");
     day_test!(day09, Part2, "inputs/day09_demo.txt", "1");
-
-    // Part 1: 6098
-    // Part 2: 2597
 }
