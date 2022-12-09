@@ -96,9 +96,9 @@ impl FromStr for Move {
     }
 }
 
-impl Solution for DaySolution {
-    fn part1(&self, input: &str) -> Result<Box<dyn Display>> {
-        let mut rope = Rope::new(2);
+impl DaySolution {
+    fn solve(&self, input: &str, rope_len: usize) -> Result<usize> {
+        let mut rope = Rope::new(rope_len);
         let mut history = HashSet::new();
 
         for line in input.lines() {
@@ -111,24 +111,17 @@ impl Solution for DaySolution {
             }
         }
 
-        Ok(Box::new(history.len()))
+        Ok(history.len())
+    }
+}
+
+impl Solution for DaySolution {
+    fn part1(&self, input: &str) -> Result<Box<dyn Display>> {
+        Ok(Box::new(self.solve(input, 2)?))
     }
 
     fn part2(&self, input: &str) -> Result<Box<dyn Display>> {
-        let mut rope = Rope::new(10);
-        let mut history = HashSet::new();
-
-        for line in input.lines() {
-            let r#move = line.parse::<Move>()?;
-            for _ in 0..r#move.steps {
-                rope.move_direction(r#move.direction);
-                if let Some(last) = rope.last() {
-                    history.insert(last);
-                }
-            }
-        }
-
-        Ok(Box::new(history.len()))
+        Ok(Box::new(self.solve(input, 10)?))
     }
 }
 
