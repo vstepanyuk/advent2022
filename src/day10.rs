@@ -57,33 +57,30 @@ impl Solution for DaySolution {
     fn part1(&self, input: &str) -> Result<Box<dyn Display>> {
         let x = self.parse(input)?;
 
-        let mut interval = 20;
-        let mut result = 0;
-
-        for idx in 0..x.len() {
-            if idx == interval {
-                result += (idx) as i32 * x[idx - 1];
-                interval += 40;
-            }
-        }
-
-        Ok(Box::new(result))
+        Ok(Box::new(
+            x.iter()
+                .enumerate()
+                .skip(20)
+                .step_by(40)
+                .map(|(idx, _)| (idx) as i32 * x[idx - 1])
+                .sum::<i32>(),
+        ))
     }
 
     fn part2(&self, input: &str) -> Result<Box<dyn Display>> {
-        let x = self.parse(input)?;
-        let mut crt = vec![vec!['.'; 40]; 6];
+        let result = self
+            .parse(input)?
+            .iter()
+            .enumerate()
+            .fold(vec![vec!['.'; 40]; 6], |mut crt, (idx, pos)| {
+                let (x, y) = (idx as i32 % 40, idx / 40);
 
-        for (idx, pos) in x.iter().enumerate() {
-            let x = (idx % 40) as i32;
-            let y = idx / 40;
+                if (x - *pos).abs() <= 1 {
+                    crt[y][x as usize] = '#';
+                }
 
-            if x - 1 == *pos || x + 1 == *pos || x == *pos {
-                crt[y][x as usize] = '#';
-            }
-        }
-
-        let result = crt
+                crt
+            })
             .iter()
             .map(|row| row.iter().collect::<String>())
             .join("\n");
