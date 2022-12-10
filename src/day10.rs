@@ -3,7 +3,7 @@ use std::{fmt::Display, str::FromStr};
 use anyhow::Result;
 use aoc::{Runnable, Solution};
 use aoc_derive::Runner;
-use itertools::Itertools;
+use itertools::{process_results, Itertools};
 
 #[derive(Runner)]
 #[aoc(file = "inputs/day10.txt")]
@@ -38,38 +38,31 @@ impl FromStr for Command {
 
 impl DaySolution {
     fn parse(&self, input: &str) -> Result<Vec<i32>> {
-        let mut extended = vec![1];
-        let mut index = 0;
+        process_results(input.lines().map(Command::from_str), |iter| {
+            iter.fold(vec![1], |mut x, command| {
+                let prev = x[x.len() - 1];
+                x.push(prev);
 
-        for line in input.lines() {
-            let command = line.parse::<Command>()?;
-            match command {
-                Command::Noop => {
-                    extended.push(extended[index]);
-                    index += 1;
+                if let Command::Addx(value) = command {
+                    x.push(prev + value);
                 }
-                Command::Addx(value) => {
-                    extended.push(extended[index]);
-                    extended.push(extended[index] + value);
-                    index += 2;
-                }
-            }
-        }
 
-        Ok(extended)
+                x
+            })
+        })
     }
 }
 
 impl Solution for DaySolution {
     fn part1(&self, input: &str) -> Result<Box<dyn Display>> {
-        let extended = self.parse(input)?;
+        let x = self.parse(input)?;
 
         let mut interval = 20;
         let mut result = 0;
 
-        for idx in 0..extended.len() {
+        for idx in 0..x.len() {
             if idx == interval {
-                result += (idx) as i32 * extended[idx - 1];
+                result += (idx) as i32 * x[idx - 1];
                 interval += 40;
             }
         }
@@ -78,10 +71,10 @@ impl Solution for DaySolution {
     }
 
     fn part2(&self, input: &str) -> Result<Box<dyn Display>> {
-        let extended = self.parse(input)?;
+        let x = self.parse(input)?;
         let mut crt = vec![vec!['.'; 40]; 6];
 
-        for (idx, pos) in extended.iter().enumerate() {
+        for (idx, pos) in x.iter().enumerate() {
             let x = (idx % 40) as i32;
             let y = idx / 40;
 
