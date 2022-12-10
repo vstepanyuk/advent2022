@@ -36,15 +36,13 @@ impl FromStr for Command {
     }
 }
 
-impl DaySolution {}
-
-impl Solution for DaySolution {
-    fn part1(&self, input: &str) -> Result<Box<dyn Display>> {
+impl DaySolution {
+    fn parse(&self, input: &str) -> Result<Vec<i32>> {
         let mut extended = vec![1];
         let mut index = 0;
 
         for line in input.lines() {
-            let command = line.parse::<Command>().unwrap();
+            let command = line.parse::<Command>()?;
             match command {
                 Command::Noop => {
                     extended.push(extended[index]);
@@ -57,6 +55,14 @@ impl Solution for DaySolution {
                 }
             }
         }
+
+        Ok(extended)
+    }
+}
+
+impl Solution for DaySolution {
+    fn part1(&self, input: &str) -> Result<Box<dyn Display>> {
+        let extended = self.parse(input)?;
 
         let mut interval = 20;
         let mut result = 0;
@@ -72,24 +78,7 @@ impl Solution for DaySolution {
     }
 
     fn part2(&self, input: &str) -> Result<Box<dyn Display>> {
-        let mut extended = vec![1];
-        let mut index = 0;
-
-        for line in input.lines() {
-            let command = line.parse::<Command>().unwrap();
-            match command {
-                Command::Noop => {
-                    extended.push(extended[index]);
-                    index += 1;
-                }
-                Command::Addx(value) => {
-                    extended.push(extended[index]);
-                    extended.push(extended[index] + value);
-                    index += 2;
-                }
-            }
-        }
-
+        let extended = self.parse(input)?;
         let mut crt = vec![vec!['.'; 40]; 6];
 
         for (idx, pos) in extended.iter().enumerate() {
