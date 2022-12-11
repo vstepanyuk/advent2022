@@ -62,7 +62,7 @@ impl Solution for DaySolution {
                 .enumerate()
                 .skip(20)
                 .step_by(40)
-                .map(|(idx, _)| (idx) as i32 * x[idx - 1])
+                .map(|(idx, _)| idx as i32 * x[idx - 1])
                 .sum::<i32>(),
         ))
     }
