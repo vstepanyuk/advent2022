@@ -36,7 +36,7 @@ impl DaySolution {
         Ok((matrix, start, end))
     }
 
-    fn find_path<T, U>(
+    fn find_path_len<T, U>(
         &self,
         matrix: &Matrix<char>,
         start: (char, usize, usize),
@@ -71,7 +71,7 @@ impl Solution for DaySolution {
     fn part1(&self, input: &str) -> Result<Box<dyn Display>> {
         let (matrix, start, end) = self.parse(input)?;
 
-        Ok(Box::new(self.find_path(
+        Ok(Box::new(self.find_path_len(
             &matrix,
             start,
             |n, c| n as i32 - c as i32,
@@ -82,7 +82,7 @@ impl Solution for DaySolution {
     fn part2(&self, input: &str) -> Result<Box<dyn Display>> {
         let (matrix, _, end) = self.parse(input)?;
 
-        Ok(Box::new(self.find_path(
+        Ok(Box::new(self.find_path_len(
             &matrix,
             end,
             |n, c| c as i32 - n as i32,
