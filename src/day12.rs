@@ -14,17 +14,17 @@ pub struct DaySolution {
 }
 
 impl DaySolution {
-    fn find_path<SF, WF>(
+    fn find_path<T, U>(
         &self,
         matrix: &mut Matrix<char>,
         start: (char, usize, usize),
         end: (char, usize, usize),
-        distance: WF,
-        success: SF,
+        distance: U,
+        success: T,
     ) -> Result<usize>
     where
-        SF: Fn(&(char, usize, usize)) -> bool,
-        WF: Fn(&char, &char) -> i32,
+        T: Fn(&(char, usize, usize)) -> bool,
+        U: Fn(&char, &char) -> i32,
     {
         *matrix.get_mut(start.1, start.2).unwrap() = start.0;
         *matrix.get_mut(end.1, end.2).unwrap() = end.0;
@@ -34,17 +34,18 @@ impl DaySolution {
             |&(current, x, y)| {
                 matrix
                     .neighbours4_iter(x, y)
-                    .filter_map(|(&c, (x, y))| {
-                        (distance(&c, &current) <= 1).then_some((c, x as usize, y as usize))
+                    .filter_map(|(&neighbour, (x, y))| {
+                        (distance(&neighbour, &current) <= 1)
+                            .then_some((neighbour, x as usize, y as usize))
                     })
                     .collect::<Vec<_>>()
             },
             success,
         );
 
-        Ok(result
+        result
             .ok_or_else(|| anyhow::anyhow!("No path found"))
-            .map(|path| path.len() - 1)?)
+            .map(|path| path.len() - 1)
     }
 }
 
