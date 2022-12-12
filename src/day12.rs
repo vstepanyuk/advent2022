@@ -47,7 +47,7 @@ impl DaySolution {
         T: Fn(&(char, usize, usize)) -> bool,
         U: Fn(char, char) -> i32,
     {
-        let result = bfs(
+        bfs(
             &start,
             |&(current, x, y)| {
                 matrix
@@ -59,11 +59,9 @@ impl DaySolution {
                     .collect::<Vec<_>>()
             },
             success,
-        );
-
-        result
-            .ok_or_else(|| anyhow::anyhow!("No path found"))
-            .map(|path| path.len() - 1)
+        )
+        .ok_or_else(|| anyhow::anyhow!("No path found"))
+        .map(|path| path.len() - 1)
     }
 }
 
