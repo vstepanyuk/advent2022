@@ -4,8 +4,7 @@ use anyhow::Result;
 use aoc::{Runnable, Solution};
 use aoc_derive::Runner;
 
-use crate::matrix::Matrix;
-use pathfinding::prelude::bfs;
+use pathfinding::prelude::{bfs, Matrix};
 
 #[derive(Runner)]
 #[aoc(file = "inputs/day12.txt")]
@@ -13,49 +12,45 @@ pub struct DaySolution {
     pub filename: &'static str,
 }
 
-type Key = (char, usize, usize);
+type Coord = (usize, usize);
 
 impl DaySolution {
-    fn parse(&self, input: &str) -> Result<(Matrix<char>, Key, Key)> {
-        let mut matrix =
-            Matrix::<char>::from(input).ok_or_else(|| anyhow::anyhow!("Invalid input"))?;
+    fn parse(&self, input: &str) -> Result<(Matrix<u8>, Coord, Coord)> {
+        let mut matrix = Matrix::from_rows(input.lines().map(|l| l.as_bytes().to_vec()))?;
 
         let start = matrix
-            .iter()
-            .find_map(|(c, (x, y))| (*c == 'S').then_some(('a', x, y)))
+            .indices()
+            .find(|&pos| matrix.get(pos).unwrap().eq(&b'S'))
             .ok_or_else(|| anyhow::anyhow!("No start"))?;
 
         let end = matrix
-            .iter()
-            .find_map(|(c, (x, y))| (*c == 'E').then_some(('z', x, y)))
+            .indices()
+            .find(|&pos| matrix.get(pos).unwrap().eq(&b'E'))
             .ok_or_else(|| anyhow::anyhow!("No end"))?;
 
-        *matrix.get_mut(start.1, start.2).unwrap() = start.0;
-        *matrix.get_mut(end.1, end.2).unwrap() = end.0;
+        *matrix.get_mut(start).unwrap() = b'a';
+        *matrix.get_mut(end).unwrap() = b'z';
 
         Ok((matrix, start, end))
     }
 
-    fn find_path_len<T, U>(
+    fn path_len<T, U, V>(
         &self,
-        matrix: &Matrix<char>,
-        start: (char, usize, usize),
-        distance: U,
-        success: T,
+        matrix: &Matrix<T>,
+        start: Coord,
+        mut can_move: U,
+        success: V,
     ) -> Result<usize>
     where
-        T: Fn(&(char, usize, usize)) -> bool,
-        U: Fn(char, char) -> i32,
+        U: FnMut(&Coord, &Coord) -> bool,
+        V: Fn(&Coord) -> bool,
     {
         bfs(
             &start,
-            |&(current, x, y)| {
+            |&pos| {
                 matrix
-                    .neighbours4_iter(x, y)
-                    .filter_map(|(&neighbour, (x, y))| {
-                        (distance(neighbour, current) <= 1)
-                            .then_some((neighbour, x as usize, y as usize))
-                    })
+                    .neighbours(pos, false)
+                    .filter(|neighbour| can_move(&pos, neighbour))
                     .collect::<Vec<_>>()
             },
             success,
@@ -69,23 +64,36 @@ impl Solution for DaySolution {
     fn part1(&self, input: &str) -> Result<Box<dyn Display>> {
         let (matrix, start, end) = self.parse(input)?;
 
-        Ok(Box::new(self.find_path_len(
+        let result = self.path_len(
             &matrix,
             start,
-            |n, c| n as i32 - c as i32,
-            |&(_, x, y)| x == end.1 && y == end.2,
-        )?))
+            |&current, &neighbour| {
+                let current = *matrix.get(current).unwrap() as i32;
+                let neighbour = *matrix.get(neighbour).unwrap() as i32;
+
+                neighbour - current <= 1
+            },
+            |&pos| pos == end,
+        )?;
+
+        Ok(Box::new(result))
     }
 
     fn part2(&self, input: &str) -> Result<Box<dyn Display>> {
         let (matrix, _, end) = self.parse(input)?;
-
-        Ok(Box::new(self.find_path_len(
+        let result = self.path_len(
             &matrix,
             end,
-            |n, c| c as i32 - n as i32,
-            |&(c, _, _)| c == 'a',
-        )?))
+            |&current, &neighbour| {
+                let current = *matrix.get(current).unwrap() as i32;
+                let neighbour = *matrix.get(neighbour).unwrap() as i32;
+
+                current - neighbour <= 1
+            },
+            |&pos| *matrix.get(pos).unwrap() == b'a',
+        )?;
+
+        Ok(Box::new(result))
     }
 }
 
