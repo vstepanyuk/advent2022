@@ -3,7 +3,7 @@ use std::{cmp::Ordering, fmt::Display};
 use anyhow::Result;
 use aoc::{Runnable, Solution};
 use aoc_derive::Runner;
-use itertools::Itertools;
+use itertools::{process_results, Itertools};
 
 #[derive(Runner)]
 #[aoc(file = "inputs/day13.txt")]
@@ -15,17 +15,15 @@ type JsonValue = serde_json::Value;
 
 impl DaySolution {
     fn parse(&self, input: &str) -> Result<Vec<JsonValue>> {
-        let mut results = vec![];
+        let items = process_results(
+            input
+                .lines()
+                .filter(|l| !l.is_empty())
+                .map(|l| l.parse::<JsonValue>()),
+            |iter| iter.collect(),
+        )?;
 
-        for line in input.lines() {
-            if line.trim().is_empty() {
-                continue;
-            }
-
-            results.push(line.parse::<JsonValue>()?);
-        }
-
-        Ok(results)
+        Ok(items)
     }
 
     fn check(left: &JsonValue, right: &JsonValue) -> Ordering {
