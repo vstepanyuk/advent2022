@@ -126,9 +126,11 @@ impl Solution for DaySolution {
         let max_height = cave.keys().map(|p| p.y).max().unwrap();
         let mut sand = Point::new((500, 0));
 
-        for x in 0..1_000 {
-            cave.insert(Point::new((x, max_height + 2)), '#');
-        }
+        cave.extend(
+            (0..1_000)
+                .map(|x| (Point::new((x, max_height + 2)), '#'))
+                .collect::<HashMap<_, _>>(),
+        );
 
         loop {
             if self.can_move(&cave, &Point::new((sand.x, sand.y + 1))) {
