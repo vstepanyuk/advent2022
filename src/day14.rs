@@ -71,16 +71,17 @@ impl Solution for DaySolution {
         let mut sand_point = Point::new((500, 0));
 
         loop {
-            if sand_point.y > max_height {
-                break;
+            if let Some(new_sand_point) = sand_point.fall_in(&cave) {
+                if new_sand_point.y > max_height {
+                    break;
+                }
+
+                sand_point = new_sand_point;
+                continue;
             }
 
-            if let Some(new_sand_point) = sand_point.fall_in(&cave) {
-                sand_point = new_sand_point;
-            } else {
-                cave.insert(sand_point, 'o');
-                sand_point = Point::new((500, 0));
-            }
+            cave.insert(sand_point, 'o');
+            sand_point = Point::new((500, 0));
         }
 
         Ok(Box::new(cave.values().filter(|&c| *c == 'o').count()))
