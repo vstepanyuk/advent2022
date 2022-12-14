@@ -55,19 +55,12 @@ impl FromStr for Point {
 
 impl DaySolution {
     fn parse(&self, input: &str) -> HashMap<Point, char> {
-        HashMap::from_iter(
-            input
-                .lines()
-                .map(|line| {
-                    line.split(" -> ")
-                        .map(|s| s.parse::<Point>().ok())
-                        .flatten()
-                        .tuple_windows()
-                        .map(|(start, end)| Point::between(&start, &end).map(|p| (p, '#')))
-                        .flatten()
-                })
-                .flatten(),
-        )
+        HashMap::from_iter(input.lines().flat_map(|line| {
+            line.split(" -> ")
+                .flat_map(|s| s.parse::<Point>().ok())
+                .tuple_windows()
+                .flat_map(|(start, end)| Point::between(&start, &end).map(|p| (p, '#')))
+        }))
     }
 }
 
@@ -75,18 +68,18 @@ impl Solution for DaySolution {
     fn part1(&self, input: &str) -> Result<Box<dyn Display>> {
         let mut cave = self.parse(input);
         let max_height = cave.keys().map(|p| p.y).max().unwrap();
-        let mut sand = Point::new((500, 0));
+        let mut sand_point = Point::new((500, 0));
 
         loop {
-            if sand.y > max_height {
+            if sand_point.y > max_height {
                 break;
             }
 
-            if let Some(new_pos) = sand.fall_in(&cave) {
-                sand = new_pos;
+            if let Some(new_sand_point) = sand_point.fall_in(&cave) {
+                sand_point = new_sand_point;
             } else {
-                cave.insert(sand, 'o');
-                sand = Point::new((500, 0));
+                cave.insert(sand_point, 'o');
+                sand_point = Point::new((500, 0));
             }
         }
 
@@ -96,7 +89,7 @@ impl Solution for DaySolution {
     fn part2(&self, input: &str) -> Result<Box<dyn Display>> {
         let mut cave = self.parse(input);
         let max_height = cave.keys().map(|p| p.y).max().unwrap();
-        let mut sand = Point::new((500, 0));
+        let mut sand_point = Point::new((500, 0));
 
         cave.extend(
             (0..1_000)
@@ -105,16 +98,17 @@ impl Solution for DaySolution {
         );
 
         loop {
-            if let Some(new_pos) = sand.fall_in(&cave) {
-                sand = new_pos;
-            } else {
-                cave.insert(sand, 'o');
-                if sand.x == 500 && sand.y == 0 {
-                    break;
-                }
-
-                sand = Point::new((500, 0));
+            if let Some(new_sand_point) = sand_point.fall_in(&cave) {
+                sand_point = new_sand_point;
+                continue;
             }
+
+            cave.insert(sand_point, 'o');
+            if sand_point.x == 500 && sand_point.y == 0 {
+                break;
+            }
+
+            sand_point = Point::new((500, 0));
         }
 
         Ok(Box::new(cave.values().filter(|&c| *c == 'o').count()))
