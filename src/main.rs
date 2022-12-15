@@ -16,6 +16,15 @@ mod day11;
 mod day12;
 mod day13;
 mod day14;
+mod day15;
+
+#[macro_export]
+macro_rules! regex {
+    ($re:literal $(,)?) => {{
+        static RE: once_cell::sync::OnceCell<regex::Regex> = once_cell::sync::OnceCell::new();
+        RE.get_or_init(|| regex::Regex::new($re).unwrap())
+    }};
+}
 
 fn main() {
     let day = std::env::args()
@@ -24,7 +33,7 @@ fn main() {
 
     runners!(
         day01, day02, day03, day04, day05, day06, day07, day08, day09, day10, day11, day12, day13,
-        day14
+        day14, day15
     )
     .iter()
     .enumerate()
