@@ -50,21 +50,10 @@ impl Valve {
     }
 }
 
-impl DaySolution {
-    fn parse(&self, input: &str) -> HashMap<String, Valve> {
-        HashMap::from_iter(input.lines().map(|line| {
-            let (_, valve) = Valve::parse(line).unwrap();
-            (valve.id.clone(), valve)
-        }))
-    }
-}
-
-impl DaySolution {}
-
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 struct State {
     opened: Vec<String>,
-    your: String,
+    me: String,
     total: i32,
     elephant: Option<String>,
     history: Vec<String>,
@@ -74,7 +63,7 @@ impl State {
     fn new(current: impl ToString) -> Self {
         State {
             opened: vec![],
-            your: current.to_string(),
+            me: current.to_string(),
             total: 0,
             elephant: None,
             history: vec![],
@@ -97,12 +86,12 @@ impl State {
         possible_open: usize,
     ) -> Vec<State> {
         let mut actions = vec![];
-        let valve = valves.get(&self.your).unwrap();
+        let valve = valves.get(&self.me).unwrap();
 
         // Open current
-        if !self.opened.contains(&self.your) && valve.rate > 0 {
+        if !self.opened.contains(&self.me) && valve.rate > 0 {
             let mut new_state = self.clone();
-            new_state.opened.push(self.your.clone());
+            new_state.opened.push(self.me.clone());
             actions.push(new_state);
         }
 
@@ -114,7 +103,7 @@ impl State {
         // Move to neighbour
         for neighbour in valve.connections.iter() {
             let mut neighbour_state = self.clone();
-            neighbour_state.your = neighbour.clone();
+            neighbour_state.me = neighbour.clone();
 
             actions.push(neighbour_state);
         }
@@ -123,11 +112,11 @@ impl State {
     }
 
     fn is_opening(&self, other: &State) -> bool {
-        self.your == other.your
+        self.me == other.me
     }
 
     fn my_possible_actions_with_elephant(
-        &mut self,
+        &self,
         valves: &HashMap<String, Valve>,
         possible_open: usize,
     ) -> Vec<State> {
@@ -140,69 +129,53 @@ impl State {
 
         for my_action in my_actions.iter() {
             if self.elephant.is_none() {
-                if self.is_opening(my_action) {
-                    // opening
-                    for neighbour in valves.get(&self.your).unwrap().connections.iter() {
-                        if neighbour == &my_action.your {
-                            continue;
-                        }
-
-                        let mut neighbour_state = my_action.clone();
-                        neighbour_state.elephant = Some(neighbour.clone());
-                        actions.push(neighbour_state);
-                    }
-                } else {
-                    // moving
-                    let valve = valves.get(&self.your).unwrap();
-
-                    if !my_action.opened.contains(&self.your) && valve.rate > 0 {
-                        let mut new_state = my_action.clone();
-                        new_state.opened.push(self.your.clone());
-
-                        actions.push(new_state);
-                    }
-
-                    for neighbour in valves.get(&self.your).unwrap().connections.iter() {
-                        if neighbour == &my_action.your {
-                            continue;
-                        }
-
-                        let mut neighbour_state = my_action.clone();
-                        neighbour_state.elephant = Some(neighbour.clone());
-                        actions.push(neighbour_state);
-                    }
-                }
+                // moving elephant
+                actions.extend(
+                    valves[&self.me]
+                        .connections
+                        .iter()
+                        .cloned()
+                        .filter(|x| {
+                            x != if self.is_opening(my_action) {
+                                &self.me
+                            } else {
+                                &my_action.me
+                            }
+                        })
+                        .map(|neighbour| {
+                            let mut neighbour_state = my_action.clone();
+                            neighbour_state.elephant = Some(neighbour);
+                            neighbour_state
+                        }),
+                );
             } else {
                 let elephant = self.elephant.clone().unwrap();
                 let elephant_valve = valves.get(&elephant).unwrap();
 
                 // open
-                if elephant_valve.rate > 0 && !self.opened.contains(&elephant) {
-                    if self.is_opening(&my_action) {
-                        if self.your != elephant {
-                            let mut new_state = my_action.clone();
-                            new_state.opened.push(elephant.clone());
+                if elephant_valve.rate > 0
+                    && !self.opened.contains(&elephant)
+                    && (!self.is_opening(my_action) || self.me != elephant)
+                {
+                    let mut new_state = my_action.clone();
+                    new_state.opened.push(elephant.clone());
 
-                            actions.push(new_state);
-                        }
-                    } else {
-                        let mut new_state = my_action.clone();
-                        new_state.opened.push(elephant.clone());
-
-                        actions.push(new_state);
-                    }
+                    actions.push(new_state);
                 }
 
-                // move
-                for neighbour in valves.get(&elephant).unwrap().connections.iter() {
-                    if neighbour == &self.your {
-                        continue;
-                    }
-
-                    let mut neighbour_state = my_action.clone();
-                    neighbour_state.elephant = Some(neighbour.clone());
-                    actions.push(neighbour_state);
-                }
+                // moving
+                actions.extend(
+                    valves[&elephant]
+                        .connections
+                        .iter()
+                        .cloned()
+                        .filter(|x| x != &self.me)
+                        .map(|neighbour| {
+                            let mut neighbour_state = my_action.clone();
+                            neighbour_state.elephant = Some(neighbour);
+                            neighbour_state
+                        }),
+                );
             }
         }
 
@@ -210,27 +183,33 @@ impl State {
     }
 }
 
-impl Solution for DaySolution {
-    fn part1(&self, input: &str) -> Result<Box<dyn Display>> {
+impl DaySolution {
+    fn parse(&self, input: &str) -> HashMap<String, Valve> {
+        HashMap::from_iter(input.lines().map(|line| {
+            let (_, valve) = Valve::parse(line).unwrap();
+            (valve.id.clone(), valve)
+        }))
+    }
+
+    fn solve<F>(&self, input: &str, minutes: usize, states_limit: usize, next_states: F) -> i32
+    where
+        F: Fn(&State, &HashMap<String, Valve>, usize) -> Vec<State>,
+    {
         let valves = self.parse(input);
 
-        let openable = valves
-            .iter()
-            .filter(|(_, valve)| valve.rate > 0)
-            .map(|(id, _)| id)
-            .count();
+        let openable = valves.iter().filter(|(_, valve)| valve.rate > 0).count();
 
         let mut states = HashSet::new();
         let state = State::new("AA");
         states.insert(state);
 
-        for _ in 0..30 {
+        for _ in 0..minutes {
             let mut new_states = HashSet::new();
 
             for state in states.iter() {
                 let mut new_state = state.clone();
                 new_state.release(&valves);
-                new_states.extend(new_state.my_possible_actions(&valves, openable));
+                new_states.extend(next_states(&new_state, &valves, openable));
             }
 
             states = HashSet::from_iter(
@@ -238,50 +217,31 @@ impl Solution for DaySolution {
                     .into_iter()
                     .sorted_by_key(|s: &State| s.total)
                     .rev()
-                    .take(1000),
+                    .take(states_limit),
             );
         }
 
-        let result = states.iter().map(|s| s.total).max().unwrap();
+        states.iter().map(|s| s.total).max().unwrap()
+    }
+}
 
-        Ok(Box::new(result))
+impl Solution for DaySolution {
+    fn part1(&self, input: &str) -> Result<Box<dyn Display>> {
+        Ok(Box::new(self.solve(
+            input,
+            30,
+            1_000,
+            State::my_possible_actions,
+        )))
     }
 
     fn part2(&self, input: &str) -> Result<Box<dyn Display>> {
-        let valves = self.parse(input);
-
-        let openable = valves
-            .iter()
-            .filter(|(_, valve)| valve.rate > 0)
-            .map(|(id, _)| id)
-            .count();
-
-        let mut states = HashSet::new();
-        let state = State::new("AA");
-        states.insert(state);
-
-        for _ in 0..26 {
-            let mut new_states = HashSet::new();
-
-            for state in states.iter() {
-                let mut new_state = state.clone();
-
-                new_state.release(&valves);
-                new_states.extend(new_state.my_possible_actions_with_elephant(&valves, openable));
-            }
-
-            states = HashSet::from_iter(
-                new_states
-                    .into_iter()
-                    .sorted_by_key(|s: &State| s.total)
-                    .rev()
-                    .take(10_000),
-            );
-        }
-
-        let result = states.iter().map(|s| s.total).max().unwrap();
-
-        Ok(Box::new(result))
+        Ok(Box::new(self.solve(
+            input,
+            26,
+            2_000,
+            State::my_possible_actions_with_elephant,
+        )))
     }
 }
 
