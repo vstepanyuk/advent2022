@@ -3,7 +3,6 @@ use std::{collections::VecDeque, fmt::Display};
 use anyhow::Result;
 use aoc::{Runnable, Solution};
 use aoc_derive::Runner;
-use itertools::Itertools;
 
 #[derive(Runner)]
 #[aoc(file = "inputs/day20.txt")]
