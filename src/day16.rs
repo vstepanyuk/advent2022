@@ -56,7 +56,6 @@ struct State {
     me: String,
     total: i32,
     elephant: Option<String>,
-    history: Vec<String>,
 }
 
 impl State {
@@ -66,7 +65,6 @@ impl State {
             me: current.to_string(),
             total: 0,
             elephant: None,
-            history: vec![],
         }
     }
 
