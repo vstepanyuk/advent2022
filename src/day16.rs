@@ -62,21 +62,12 @@ impl DaySolution {
 impl DaySolution {}
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
-enum Action {
-    Open(String),
-    Move(String, String),
-}
-
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 struct State {
     opened: Vec<String>,
     your: String,
     total: i32,
     elephant: Option<String>,
     history: Vec<String>,
-
-    your_action: Option<Action>,
-    elephant_action: Option<Action>,
 }
 
 impl State {
@@ -87,8 +78,6 @@ impl State {
             total: 0,
             elephant: None,
             history: vec![],
-            your_action: None,
-            elephant_action: None,
         }
     }
 
@@ -113,32 +102,28 @@ impl State {
         // Open current
         if !self.opened.contains(&self.your) && valve.rate > 0 {
             let mut new_state = self.clone();
-
             new_state.opened.push(self.your.clone());
-            new_state.your_action = Some(Action::Open(self.your.clone()));
-
             actions.push(new_state);
         }
 
         // Only release if all opened
         if possible_open == self.opened.len() {
-            let mut state = self.clone();
-            state.your_action = None;
-            state.elephant_action = None;
-
-            actions.push(state);
+            actions.push(self.clone());
         }
 
         // Move to neighbour
         for neighbour in valve.connections.iter() {
             let mut neighbour_state = self.clone();
             neighbour_state.your = neighbour.clone();
-            neighbour_state.your_action = Some(Action::Move(self.your.clone(), neighbour.clone()));
 
             actions.push(neighbour_state);
         }
 
         actions
+    }
+
+    fn is_opening(&self, other: &State) -> bool {
+        self.your == other.your
     }
 
     fn my_possible_actions_with_elephant(
@@ -155,48 +140,36 @@ impl State {
 
         for my_action in my_actions.iter() {
             if self.elephant.is_none() {
-                let action = my_action.your_action.clone().unwrap();
-
-                match action {
-                    Action::Open(opened) => {
-                        for neighbour in valves.get(&self.your).unwrap().connections.iter() {
-                            if neighbour == &opened {
-                                continue;
-                            }
-
-                            let mut neighbour_state = my_action.clone();
-                            neighbour_state.elephant_action =
-                                Some(Action::Move(self.your.clone(), neighbour.clone()));
-
-                            neighbour_state.elephant = Some(neighbour.clone());
-                            actions.push(neighbour_state);
+                if self.is_opening(my_action) {
+                    // opening
+                    for neighbour in valves.get(&self.your).unwrap().connections.iter() {
+                        if neighbour == &my_action.your {
+                            continue;
                         }
+
+                        let mut neighbour_state = my_action.clone();
+                        neighbour_state.elephant = Some(neighbour.clone());
+                        actions.push(neighbour_state);
                     }
-                    Action::Move(from, to) => {
-                        // open current
-                        let valve = valves.get(&self.your).unwrap();
+                } else {
+                    // moving
+                    let valve = valves.get(&self.your).unwrap();
 
-                        if !my_action.opened.contains(&self.your) && valve.rate > 0 {
-                            let mut new_state = my_action.clone();
-                            new_state.elephant_action = Some(Action::Open(self.your.clone()));
-                            new_state.opened.push(self.your.clone());
+                    if !my_action.opened.contains(&self.your) && valve.rate > 0 {
+                        let mut new_state = my_action.clone();
+                        new_state.opened.push(self.your.clone());
 
-                            actions.push(new_state);
+                        actions.push(new_state);
+                    }
+
+                    for neighbour in valves.get(&self.your).unwrap().connections.iter() {
+                        if neighbour == &my_action.your {
+                            continue;
                         }
-                        // move
 
-                        for neighbour in valves.get(&from).unwrap().connections.iter() {
-                            if neighbour == &to {
-                                continue;
-                            }
-
-                            let mut neighbour_state = my_action.clone();
-                            neighbour_state.elephant_action =
-                                Some(Action::Move(from.clone(), neighbour.clone()));
-
-                            neighbour_state.elephant = Some(neighbour.clone());
-                            actions.push(neighbour_state);
-                        }
+                        let mut neighbour_state = my_action.clone();
+                        neighbour_state.elephant = Some(neighbour.clone());
+                        actions.push(neighbour_state);
                     }
                 }
             } else {
@@ -205,24 +178,20 @@ impl State {
 
                 // open
                 if elephant_valve.rate > 0 && !self.opened.contains(&elephant) {
-                    if let Some(Action::Open(opening)) = &my_action.your_action {
-                        if opening != &elephant {
+                    if self.is_opening(&my_action) {
+                        if self.your != elephant {
                             let mut new_state = my_action.clone();
-                            new_state.elephant_action = Some(Action::Open(elephant.clone()));
                             new_state.opened.push(elephant.clone());
 
                             actions.push(new_state);
                         }
                     } else {
                         let mut new_state = my_action.clone();
-                        new_state.elephant_action = Some(Action::Open(elephant.clone()));
                         new_state.opened.push(elephant.clone());
 
                         actions.push(new_state);
                     }
                 }
-
-                // let action = my_action.your_action.clone().unwrap();
 
                 // move
                 for neighbour in valves.get(&elephant).unwrap().connections.iter() {
@@ -231,9 +200,6 @@ impl State {
                     }
 
                     let mut neighbour_state = my_action.clone();
-                    neighbour_state.elephant_action =
-                        Some(Action::Move(elephant.clone(), neighbour.clone()));
-
                     neighbour_state.elephant = Some(neighbour.clone());
                     actions.push(neighbour_state);
                 }
