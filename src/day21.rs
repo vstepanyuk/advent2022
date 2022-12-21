@@ -95,21 +95,17 @@ impl Expr {
 
         loop {
             x = current.apply_op(x);
-            match (&current.left, &current.right) {
+            current = match (&current.left, &current.right) {
                 (_, Operand::X) => {
                     break;
                 }
                 (Operand::X, _) => {
                     break;
                 }
-                (_, Operand::Expr(expr)) => {
-                    current = expr;
-                }
-                (Operand::Expr(expr), _) => {
-                    current = expr;
-                }
+                (_, Operand::Expr(expr)) => expr,
+                (Operand::Expr(expr), _) => expr,
                 _ => unreachable!(),
-            }
+            };
         }
 
         x
