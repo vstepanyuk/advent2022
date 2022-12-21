@@ -34,6 +34,21 @@ impl Operand {
             _ => unreachable!(),
         }
     }
+
+    fn parse(input: &str) -> IResult<&str, Self> {
+        let (input, operand) = alt((
+            map(
+                delimited(complete::char('('), Expr::parse, complete::char(')')),
+                |expr| Self::Expr(Box::new(expr)),
+            ),
+            map(complete::char('x'), |_| Self::X),
+            map(
+                map_res(complete::digit1, |s: &str| s.parse::<i64>()),
+                Self::Num,
+            ),
+        ))(input)?;
+        Ok((input, operand))
+    }
 }
 
 #[derive(Debug)]
@@ -61,7 +76,7 @@ impl Expr {
                 '-' => n - x,
                 '*' => x / n,
                 '/' => n / x,
-                _ => unreachable!(),
+                _ => x,
             },
             (_, Operand::Num(n)) => match self.op {
                 '+' => x - n,
@@ -99,37 +114,13 @@ impl Expr {
 
         x
     }
-}
 
-fn parse_equation(input: &str) -> IResult<&str, Expr> {
-    let (input, (left, op, right)) =
-        tuple((parse_operand, complete::one_of("+-*/"), parse_operand))(input)?;
+    fn parse(input: &str) -> IResult<&str, Expr> {
+        let (input, (left, op, right)) =
+            tuple((Operand::parse, complete::one_of("+-*/"), Operand::parse))(input)?;
 
-    Ok((input, Expr { left, op, right }))
-}
-
-fn parse_operand(input: &str) -> IResult<&str, Operand> {
-    let (input, operand) = alt((parse_expr_operand, parse_x_operand, parse_num_operand))(input)?;
-    Ok((input, operand))
-}
-
-fn parse_expr_operand(input: &str) -> IResult<&str, Operand> {
-    let (input, expr) = delimited(complete::char('('), parse_equation, complete::char(')'))(input)?;
-    Ok((input, Operand::Expr(Box::new(expr))))
-}
-
-fn parse_x_operand(input: &str) -> IResult<&str, Operand> {
-    let (input, _) = complete::char('x')(input)?;
-    Ok((input, Operand::X))
-}
-
-fn parse_num_operand(input: &str) -> IResult<&str, Operand> {
-    let (input, num) = map(
-        map_res(complete::digit1, |s: &str| s.parse::<i64>()),
-        Operand::Num,
-    )(input)?;
-
-    Ok((input, num))
+        Ok((input, Expr { left, op, right }))
+    }
 }
 
 impl Solution for DaySolution {
@@ -254,8 +245,8 @@ console.log(expr);"#
             (second, first)
         };
 
-        let (_, ast) = parse_equation(ast).unwrap();
-        let (_, value) = parse_equation(value).unwrap();
+        let (_, ast) = Expr::parse(ast).unwrap();
+        let (_, value) = Expr::parse(value).unwrap();
 
         Ok(Box::new(ast.solve(value.eval())))
     }
