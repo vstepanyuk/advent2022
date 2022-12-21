@@ -1,8 +1,9 @@
-use std::{collections::HashMap, fmt::Display};
+use std::fmt::Display;
 
 use anyhow::Result;
 use aoc::{Runnable, Solution};
 use aoc_derive::Runner;
+use fxhash::FxHashMap as HashMap;
 
 use num::complex::Complex;
 
@@ -12,7 +13,7 @@ pub struct DaySolution {
     pub filename: &'static str,
 }
 
-impl DaySolution {}
+type NumberType = Complex<f64>;
 
 #[derive(parse_display::Display, parse_display::FromStr, Debug)]
 enum Operation {
@@ -25,7 +26,7 @@ enum Operation {
     #[display("{0} / {1}")]
     Divide(String, String),
     #[display("{0}")]
-    Number(Complex<f32>),
+    Number(NumberType),
 }
 
 #[derive(parse_display::Display, parse_display::FromStr, Debug)]
@@ -44,7 +45,7 @@ impl DaySolution {
             .collect::<HashMap<_, _>>()
     }
 
-    fn compute(monkeys: &HashMap<String, Operation>, monkey: &str) -> Complex<f32> {
+    fn compute(monkeys: &HashMap<String, Operation>, monkey: &str) -> NumberType {
         match monkeys[monkey] {
             Operation::Number(n) => n,
             Operation::Add(ref a, ref b) => Self::compute(monkeys, a) + Self::compute(monkeys, b),
@@ -90,7 +91,7 @@ impl Solution for DaySolution {
             (result1.re - result2.re) / result2.im
         } else {
             (result2.re - result1.re) / result1.im
-        };
+        } as i64;
 
         Ok(Box::new(result))
     }
