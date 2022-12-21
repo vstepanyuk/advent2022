@@ -1,16 +1,10 @@
-use std::{fmt::Display, process::Command, str::FromStr};
+use std::{collections::HashMap, fmt::Display};
 
 use anyhow::Result;
 use aoc::{Runnable, Solution};
 use aoc_derive::Runner;
-use itertools::Itertools;
-use nom::{
-    branch::alt,
-    character::complete,
-    combinator::{map, map_res},
-    sequence::{delimited, tuple},
-    IResult,
-};
+
+use num::complex::Complex;
 
 #[derive(Runner)]
 #[aoc(file = "inputs/day21.txt")]
@@ -20,216 +14,85 @@ pub struct DaySolution {
 
 impl DaySolution {}
 
-#[derive(Debug)]
-enum Operand {
-    Num(i64),
-    X,
-    Expr(Box<Expr>),
+#[derive(parse_display::Display, parse_display::FromStr, Debug)]
+enum Operation {
+    #[display("{0} + {1}")]
+    Add(String, String),
+    #[display("{0} - {1}")]
+    Subtract(String, String),
+    #[display("{0} * {1}")]
+    Multiply(String, String),
+    #[display("{0} / {1}")]
+    Divide(String, String),
+    #[display("{0}")]
+    Number(Complex<f32>),
 }
 
-impl Operand {
-    fn eval(&self) -> i64 {
-        match self {
-            Operand::Num(n) => *n,
-            Operand::Expr(expr) => expr.eval(),
-            _ => unreachable!(),
-        }
-    }
-
-    fn parse(input: &str) -> IResult<&str, Self> {
-        let (input, operand) = alt((
-            map(
-                delimited(complete::char('('), Expr::parse, complete::char(')')),
-                |expr| Self::Expr(Box::new(expr)),
-            ),
-            map(complete::char('x'), |_| Self::X),
-            map(
-                map_res(complete::digit1, |s: &str| s.parse::<i64>()),
-                Self::Num,
-            ),
-        ))(input)?;
-        Ok((input, operand))
-    }
+#[derive(parse_display::Display, parse_display::FromStr, Debug)]
+#[display("{name}: {operation}")]
+struct Monkey {
+    name: String,
+    operation: Operation,
 }
 
-#[derive(Debug)]
-struct Expr {
-    left: Operand,
-    op: char,
-    right: Operand,
-}
-
-impl Expr {
-    fn eval(&self) -> i64 {
-        match self.op {
-            '+' => self.left.eval() + self.right.eval(),
-            '-' => self.left.eval() - self.right.eval(),
-            '*' => self.left.eval() * self.right.eval(),
-            '/' => self.left.eval() / self.right.eval(),
-            _ => unreachable!(),
-        }
+impl DaySolution {
+    fn parse(&self, input: &str) -> HashMap<String, Operation> {
+        input
+            .lines()
+            .map(|line| line.parse::<Monkey>().unwrap())
+            .map(|m: Monkey| (m.name, m.operation))
+            .collect::<HashMap<_, _>>()
     }
 
-    fn apply_op(&self, x: i64) -> i64 {
-        match (&self.left, &self.right) {
-            (Operand::Num(n), _) => match self.op {
-                '+' => x - n,
-                '-' => n - x,
-                '*' => x / n,
-                '/' => n / x,
-                _ => x,
-            },
-            (_, Operand::Num(n)) => match self.op {
-                '+' => x - n,
-                '-' => x + n,
-                '*' => x / n,
-                '/' => x * n,
-                _ => x,
-            },
-            _ => x,
+    fn compute(monkeys: &HashMap<String, Operation>, monkey: &str) -> Complex<f32> {
+        match monkeys[monkey] {
+            Operation::Number(n) => n,
+            Operation::Add(ref a, ref b) => Self::compute(monkeys, a) + Self::compute(monkeys, b),
+            Operation::Subtract(ref a, ref b) => {
+                Self::compute(monkeys, a) - Self::compute(monkeys, b)
+            }
+            Operation::Multiply(ref a, ref b) => {
+                Self::compute(monkeys, a) * Self::compute(monkeys, b)
+            }
+            Operation::Divide(ref a, ref b) => {
+                Self::compute(monkeys, a) / Self::compute(monkeys, b)
+            }
         }
-    }
-
-    fn solve(&self, x: i64) -> i64 {
-        let mut current = self;
-        let mut x = x;
-
-        loop {
-            x = current.apply_op(x);
-            current = match (&current.left, &current.right) {
-                (_, Operand::X) => {
-                    break;
-                }
-                (Operand::X, _) => {
-                    break;
-                }
-                (_, Operand::Expr(expr)) => expr,
-                (Operand::Expr(expr), _) => expr,
-                _ => unreachable!(),
-            };
-        }
-
-        x
-    }
-
-    fn parse(input: &str) -> IResult<&str, Expr> {
-        let (input, (left, op, right)) =
-            tuple((Operand::parse, complete::one_of("+-*/"), Operand::parse))(input)?;
-
-        Ok((input, Expr { left, op, right }))
     }
 }
 
 impl Solution for DaySolution {
     fn part1(&self, input: &str) -> Result<Box<dyn Display>> {
-        let js_lines = input
-            .lines()
-            .map(|line| {
-                let (func, expr) = line.split_once(": ").unwrap();
-
-                if let Ok(expr) = u32::from_str(expr) {
-                    return format!("function {}() {{ return {} }}", func, expr);
-                }
-
-                let expr = expr
-                    .split(' ')
-                    .map(|p| match (u32::from_str(p), p) {
-                        (Ok(num), _) => num.to_string(),
-                        (_, "+" | "-" | "*" | "/") => p.to_string(),
-                        _ => format!("{}()", p),
-                    })
-                    .collect::<Vec<_>>()
-                    .join(" ");
-
-                format!("function {}() {{ return {} }}", func, expr)
-            })
-            .merge(vec!["console.log(root());".to_string()])
-            .collect::<Vec<_>>();
-
-        let result = Command::new("node")
-            .arg("-e")
-            .arg(js_lines.join("\n"))
-            .output()
-            .map(|output| String::from_utf8(output.stdout))
-            .map_err(|err| anyhow::anyhow!("Failed to run node: {}", err))??
-            .trim()
-            .to_owned();
+        let monkeys = self.parse(input);
+        let result = Self::compute(&monkeys, "root").re;
 
         Ok(Box::new(result))
     }
 
     fn part2(&self, input: &str) -> Result<Box<dyn Display>> {
-        let js_lines = input
-            .lines()
-            .map(|line| {
-                let (func, expr) = line.split_once(": ").unwrap();
+        let mut monkeys = self.parse(input);
+        *monkeys.get_mut("humn").unwrap() = Operation::Number(Complex::new(0.0, 1.));
 
-                if func == "humn" {
-                    return format!("function {}() {{ return 'x'; }}", func);
-                }
-
-                if let Ok(expr) = u32::from_str(expr) {
-                    return format!("function {}() {{ return {}; }}", func, expr);
-                }
-
-                let expr = expr
-                    .split(' ')
-                    .map(|p| match (u32::from_str(p), p) {
-                        (Ok(num), _) => num.to_string(),
-                        (_, "+" | "-" | "*" | "/") => p.to_string(),
-                        _ => format!("{}()", p),
-                    })
-                    .collect::<Vec<_>>();
-
-                let (a, op, b) = (expr[0].clone(), expr[1].clone(), expr[2].clone());
-
-                if func == "root" {
-                    return format!("function {}() {{ return `${{{}}} = ${{{}}}` }}", func, a, b);
-                }
-
-                let expr =  format!("
-                    let a = {}; let b = {};
-                    if (a !== 'x' && typeof a !== 'number') a = '(' + a + ')';
-                    if (b !== 'x' && typeof b !== 'number') b = '(' + b + ')';
-                
-                    return `${{a}} {} ${{b}}`",
-                    a, b, op);
-
-                format!("function {}() {{ {} }}", func, expr)
-            })
-            .merge(vec![
-                r#"
-                let expr = root();
-                while (true) {
-                let newExpr = expr.replace(/\((\d+)\s+([+\-*\/])\s+(\d+)\)/g, (_, a, op, b) => eval(`${a} ${op} ${b}`));
-                if (newExpr === expr) break;
-                expr = newExpr;
-                }
-                
-                console.log(expr);
-                "#.to_string()
-            ])
-            .collect::<Vec<_>>();
-
-        let result = Command::new("node")
-            .arg("-e")
-            .arg(js_lines.join("\n"))
-            .output()
-            .map(|output| String::from_utf8(output.stdout))
-            .map_err(|err| anyhow::anyhow!("Failed to run node: {}", err))??
-            .replace(' ', "");
-
-        let (first, second) = result.split_once('=').unwrap();
-        let (expr, value) = if first.contains('x') {
-            (first, second)
-        } else {
-            (second, first)
+        let (left, right) = match &monkeys["root"] {
+            Operation::Add(a, b)
+            | Operation::Divide(a, b)
+            | Operation::Multiply(a, b)
+            | Operation::Subtract(a, b) => (a, b),
+            _ => unreachable!(),
         };
 
-        let (_, ast) = Expr::parse(expr).unwrap();
-        let (_, value) = Expr::parse(value).unwrap();
+        let (result1, result2) = (
+            Self::compute(&monkeys, left),
+            Self::compute(&monkeys, right),
+        );
 
-        Ok(Box::new(ast.solve(value.eval())))
+        let result = if result1.im == 0.0 {
+            (result1.re - result2.re) / result2.im
+        } else {
+            (result2.re - result1.re) / result1.im
+        };
+
+        Ok(Box::new(result))
     }
 }
 
