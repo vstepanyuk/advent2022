@@ -3,6 +3,11 @@ use std::{fmt::Display, process::Command, str::FromStr};
 use anyhow::Result;
 use aoc::{Runnable, Solution};
 use aoc_derive::Runner;
+use nom::{
+    branch::alt,
+    combinator::{map, map_res},
+    IResult,
+};
 
 #[derive(Runner)]
 #[aoc(file = "inputs/day21.txt")]
@@ -11,6 +16,144 @@ pub struct DaySolution {
 }
 
 impl DaySolution {}
+
+#[derive(Debug)]
+enum Operand {
+    Num(i64),
+    X,
+    Expr(Box<Expr>),
+}
+
+impl Operand {
+    fn eval(&self) -> i64 {
+        match self {
+            Operand::Num(n) => *n,
+            Operand::Expr(expr) => expr.eval(),
+            _ => unreachable!(),
+        }
+    }
+}
+
+#[derive(Debug)]
+struct Expr {
+    left: Operand,
+    op: char,
+    right: Operand,
+}
+
+impl Expr {
+    fn eval(&self) -> i64 {
+        match self.op {
+            '+' => self.left.eval() + self.right.eval(),
+            '-' => self.left.eval() - self.right.eval(),
+            '*' => self.left.eval() * self.right.eval(),
+            '/' => self.left.eval() / self.right.eval(),
+            _ => unreachable!(),
+        }
+    }
+
+    fn solve(&self, x: i64) -> i64 {
+        let mut current = self;
+        let mut x = x;
+
+        loop {
+            match (&current.left, &current.right) {
+                (Operand::Num(n), Operand::X) => {
+                    match current.op {
+                        '+' => x -= n,
+                        '-' => x = n - x,
+                        '*' => x /= n,
+                        '/' => x = n / x,
+                        _ => unreachable!(),
+                    }
+                    break;
+                }
+                (Operand::X, Operand::Num(n)) => {
+                    match current.op {
+                        '+' => x -= n,
+                        '-' => x += n,
+                        '*' => x /= n,
+                        '/' => x *= n,
+                        _ => unreachable!(),
+                    }
+                    break;
+                }
+                _ => {}
+            }
+
+            if let Operand::Num(n) = current.right {
+                let n = n;
+
+                match current.op {
+                    '+' => x -= n,
+                    '-' => x += n,
+                    '*' => x /= n,
+                    '/' => x *= n,
+                    _ => unreachable!(),
+                }
+
+                if let Operand::Expr(expr) = &current.left {
+                    current = expr;
+                } else {
+                    unreachable!();
+                }
+            } else if let Operand::Num(n) = current.left {
+                let n = n;
+                match current.op {
+                    '+' => x -= n,
+                    '-' => x = n - x,
+                    '*' => x /= n,
+                    '/' => x = n / x,
+                    _ => unreachable!(),
+                }
+
+                if let Operand::Expr(expr) = &current.right {
+                    current = expr;
+                } else {
+                    unreachable!();
+                }
+            }
+        }
+
+        x as i64
+    }
+}
+
+fn parse_equation(input: &str) -> IResult<&str, Expr> {
+    let (input, left) = parse_operand(input)?;
+    let (input, op) = nom::character::complete::one_of("+-*/")(input)?;
+    let (input, right) = parse_operand(input)?;
+
+    Ok((input, Expr { left, op, right }))
+}
+
+fn parse_operand(input: &str) -> IResult<&str, Operand> {
+    let (input, operand) = alt((parse_expr_operand, parse_x_operand, parse_num_operand))(input)?;
+    Ok((input, operand))
+}
+
+fn parse_expr_operand(input: &str) -> IResult<&str, Operand> {
+    let (input, _) = nom::character::complete::char('(')(input)?;
+    let (input, expr) = parse_equation(input)?;
+    let (input, _) = nom::character::complete::char(')')(input)?;
+
+    Ok((input, Operand::Expr(Box::new(expr))))
+}
+
+fn parse_x_operand(input: &str) -> IResult<&str, Operand> {
+    let (input, _) = nom::character::complete::char('x')(input)?;
+
+    Ok((input, Operand::X))
+}
+
+fn parse_num_operand(input: &str) -> IResult<&str, Operand> {
+    let (input, num) = map(
+        map_res(nom::character::complete::digit1, |s: &str| s.parse::<i64>()),
+        |a| Operand::Num(a),
+    )(input)?;
+
+    Ok((input, num))
+}
 
 impl Solution for DaySolution {
     fn part1(&self, input: &str) -> Result<Box<dyn Display>> {
@@ -45,7 +188,9 @@ impl Solution for DaySolution {
             .arg(js_code)
             .output()
             .map(|output| String::from_utf8(output.stdout))
-            .map_err(|err| anyhow::anyhow!("Failed to run node: {}", err))??;
+            .map_err(|err| anyhow::anyhow!("Failed to run node: {}", err))??
+            .trim()
+            .to_owned();
 
         Ok(Box::new(result))
     }
@@ -121,9 +266,21 @@ console.log(expr);"#
             .arg(js_code)
             .output()
             .map(|output| String::from_utf8(output.stdout))
-            .map_err(|err| anyhow::anyhow!("Failed to run node: {}", err))??;
+            .map_err(|err| anyhow::anyhow!("Failed to run node: {}", err))??
+            .replace(" ", "");
 
-        Ok(Box::new(result))
+        let (first, second) = result.split_once("=").unwrap();
+
+        let (ast, value) = if first.contains("x") {
+            (first, second)
+        } else {
+            (second, first)
+        };
+
+        let (_, ast) = parse_equation(ast).unwrap();
+        let (_, value) = parse_equation(value).unwrap();
+
+        Ok(Box::new(ast.solve(value.eval())))
     }
 }
 
@@ -133,11 +290,6 @@ mod test {
     use aoc::day_test;
     use paste::paste;
 
-    day_test!(day21, Part1, "inputs/day21_demo.txt", "152\n");
-    day_test!(
-        day21,
-        Part2,
-        "inputs/day21_demo.txt",
-        "(4 + (2 * (x - 3))) / 4 = 30 * 5\n"
-    );
+    day_test!(day21, Part1, "inputs/day21_demo.txt", "152");
+    day_test!(day21, Part2, "inputs/day21_demo.txt", "301");
 }
