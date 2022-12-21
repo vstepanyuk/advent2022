@@ -207,15 +207,10 @@ impl Solution for DaySolution {
 
         js_lines.push(
             r#"
-function simplify(expr) {
-  return expr.replace(/\((\d+)\s+([+\-*\/])\s+(\d+)\)/g, (_, a, op, b) =>
-    eval(`${a} ${op} ${b}`)
-  );
-}
 
 let expr = root();
 while (true) {
-  let newExpr = simplify(expr);
+  let newExpr = expr.replace(/\((\d+)\s+([+\-*\/])\s+(\d+)\)/g, (_, a, op, b) => eval(`${a} ${op} ${b}`));
   if (newExpr === expr) break;
   expr = newExpr;
 }
@@ -231,17 +226,16 @@ console.log(expr);"#
             .output()
             .map(|output| String::from_utf8(output.stdout))
             .map_err(|err| anyhow::anyhow!("Failed to run node: {}", err))??
-            .replace(" ", "");
+            .replace(' ', "");
 
-        let (first, second) = result.split_once("=").unwrap();
-
-        let (ast, value) = if first.contains("x") {
+        let (first, second) = result.split_once('=').unwrap();
+        let (expr, value) = if first.contains("x") {
             (first, second)
         } else {
             (second, first)
         };
 
-        let (_, ast) = Expr::parse(ast).unwrap();
+        let (_, ast) = Expr::parse(expr).unwrap();
         let (_, value) = Expr::parse(value).unwrap();
 
         Ok(Box::new(ast.solve(value.eval())))
