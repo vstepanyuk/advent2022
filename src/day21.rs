@@ -5,7 +5,9 @@ use aoc::{Runnable, Solution};
 use aoc_derive::Runner;
 use nom::{
     branch::alt,
+    character::complete,
     combinator::{map, map_res},
+    sequence::{delimited, tuple},
     IResult,
 };
 
@@ -52,77 +54,56 @@ impl Expr {
         }
     }
 
+    fn apply_op(&self, x: i64) -> i64 {
+        match (&self.left, &self.right) {
+            (Operand::Num(n), _) => match self.op {
+                '+' => x - n,
+                '-' => n - x,
+                '*' => x / n,
+                '/' => n / x,
+                _ => unreachable!(),
+            },
+            (_, Operand::Num(n)) => match self.op {
+                '+' => x - n,
+                '-' => x + n,
+                '*' => x / n,
+                '/' => x * n,
+                _ => x,
+            },
+            _ => x,
+        }
+    }
+
     fn solve(&self, x: i64) -> i64 {
         let mut current = self;
         let mut x = x;
 
         loop {
+            x = current.apply_op(x);
             match (&current.left, &current.right) {
-                (Operand::Num(n), Operand::X) => {
-                    match current.op {
-                        '+' => x -= n,
-                        '-' => x = n - x,
-                        '*' => x /= n,
-                        '/' => x = n / x,
-                        _ => unreachable!(),
-                    }
+                (_, Operand::X) => {
                     break;
                 }
-                (Operand::X, Operand::Num(n)) => {
-                    match current.op {
-                        '+' => x -= n,
-                        '-' => x += n,
-                        '*' => x /= n,
-                        '/' => x *= n,
-                        _ => unreachable!(),
-                    }
+                (Operand::X, _) => {
                     break;
                 }
-                _ => {}
-            }
-
-            if let Operand::Num(n) = current.right {
-                let n = n;
-
-                match current.op {
-                    '+' => x -= n,
-                    '-' => x += n,
-                    '*' => x /= n,
-                    '/' => x *= n,
-                    _ => unreachable!(),
-                }
-
-                if let Operand::Expr(expr) = &current.left {
+                (_, Operand::Expr(expr)) => {
                     current = expr;
-                } else {
-                    unreachable!();
                 }
-            } else if let Operand::Num(n) = current.left {
-                let n = n;
-                match current.op {
-                    '+' => x -= n,
-                    '-' => x = n - x,
-                    '*' => x /= n,
-                    '/' => x = n / x,
-                    _ => unreachable!(),
-                }
-
-                if let Operand::Expr(expr) = &current.right {
+                (Operand::Expr(expr), _) => {
                     current = expr;
-                } else {
-                    unreachable!();
                 }
+                _ => unreachable!(),
             }
         }
 
-        x as i64
+        x
     }
 }
 
 fn parse_equation(input: &str) -> IResult<&str, Expr> {
-    let (input, left) = parse_operand(input)?;
-    let (input, op) = nom::character::complete::one_of("+-*/")(input)?;
-    let (input, right) = parse_operand(input)?;
+    let (input, (left, op, right)) =
+        tuple((parse_operand, complete::one_of("+-*/"), parse_operand))(input)?;
 
     Ok((input, Expr { left, op, right }))
 }
@@ -133,23 +114,19 @@ fn parse_operand(input: &str) -> IResult<&str, Operand> {
 }
 
 fn parse_expr_operand(input: &str) -> IResult<&str, Operand> {
-    let (input, _) = nom::character::complete::char('(')(input)?;
-    let (input, expr) = parse_equation(input)?;
-    let (input, _) = nom::character::complete::char(')')(input)?;
-
+    let (input, expr) = delimited(complete::char('('), parse_equation, complete::char(')'))(input)?;
     Ok((input, Operand::Expr(Box::new(expr))))
 }
 
 fn parse_x_operand(input: &str) -> IResult<&str, Operand> {
-    let (input, _) = nom::character::complete::char('x')(input)?;
-
+    let (input, _) = complete::char('x')(input)?;
     Ok((input, Operand::X))
 }
 
 fn parse_num_operand(input: &str) -> IResult<&str, Operand> {
     let (input, num) = map(
-        map_res(nom::character::complete::digit1, |s: &str| s.parse::<i64>()),
-        |a| Operand::Num(a),
+        map_res(complete::digit1, |s: &str| s.parse::<i64>()),
+        Operand::Num,
     )(input)?;
 
     Ok((input, num))
