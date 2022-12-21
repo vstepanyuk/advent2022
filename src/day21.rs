@@ -46,18 +46,12 @@ impl DaySolution {
     }
 
     fn compute(monkeys: &HashMap<String, Operation>, monkey: &str) -> NumberType {
-        match monkeys[monkey] {
-            Operation::Number(n) => n,
-            Operation::Add(ref a, ref b) => Self::compute(monkeys, a) + Self::compute(monkeys, b),
-            Operation::Subtract(ref a, ref b) => {
-                Self::compute(monkeys, a) - Self::compute(monkeys, b)
-            }
-            Operation::Multiply(ref a, ref b) => {
-                Self::compute(monkeys, a) * Self::compute(monkeys, b)
-            }
-            Operation::Divide(ref a, ref b) => {
-                Self::compute(monkeys, a) / Self::compute(monkeys, b)
-            }
+        match monkeys.get(monkey).unwrap() {
+            Operation::Number(n) => *n,
+            Operation::Add(a, b) => Self::compute(monkeys, a) + Self::compute(monkeys, b),
+            Operation::Subtract(a, b) => Self::compute(monkeys, a) - Self::compute(monkeys, b),
+            Operation::Multiply(a, b) => Self::compute(monkeys, a) * Self::compute(monkeys, b),
+            Operation::Divide(a, b) => Self::compute(monkeys, a) / Self::compute(monkeys, b),
         }
     }
 }
