@@ -147,12 +147,11 @@ impl Solution for DaySolution {
         let mut map = HashSet::<Point>::new();
         let mut y = 3;
         let gas_diretions = input.chars().collect::<Vec<_>>();
-        let mut rock_index = 0;
         let mut direction_index = 0;
 
         // let now = std::time::Instant::now();
 
-        for _ in 0..5000 {
+        for rock_index in 0..5000 {
             let mut rock = rocks[rock_index % rocks.len()].clone();
             rock.move_by(2, y);
             // println!("Rock: #{i}");
@@ -186,7 +185,6 @@ impl Solution for DaySolution {
             // println!();
             // println!();
 
-            rock_index += 1;
             y = y.max(rock.top() + rock.height() + 3);
         }
 

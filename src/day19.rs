@@ -52,9 +52,10 @@ struct State {
 
 impl State {
     fn new() -> Self {
-        let mut state = Self::default();
-        state.ore_robots = 1;
-        state
+        Self {
+            ore_robots: 1,
+            ..Default::default()
+        }
     }
 
     fn increment(&mut self) {
@@ -90,7 +91,7 @@ impl DaySolution {
             if state.ore >= blueprint.geode_robot_cost.0
                 && state.obsidian >= blueprint.geode_robot_cost.1
             {
-                let mut new_state = state.clone();
+                let mut new_state = *state;
                 new_state.increment();
                 new_state.geode_robots += 1;
 
@@ -105,7 +106,7 @@ impl DaySolution {
                 && state.clay >= blueprint.obsidian_robot_cost.1
             // && state.obsidian_robots < blueprint.geode_robot_cost.1
             {
-                let mut new_state = state.clone();
+                let mut new_state = *state;
                 new_state.increment();
                 new_state.obsidian_robots += 1;
 
@@ -117,7 +118,7 @@ impl DaySolution {
             }
 
             if state.ore >= blueprint.ore_robot_cost && state.ore_robots < max_ore_cost {
-                let mut new_state = state.clone();
+                let mut new_state = *state;
                 new_state.increment();
                 new_state.ore_robots += 1;
                 new_state.ore -= blueprint.ore_robot_cost;
@@ -125,14 +126,14 @@ impl DaySolution {
             }
 
             if state.ore >= blueprint.clay_robot_cost {
-                let mut new_state = state.clone();
+                let mut new_state = *state;
                 new_state.increment();
                 new_state.clay_robots += 1;
                 new_state.ore -= blueprint.clay_robot_cost;
                 new_states.push(new_state);
             }
 
-            let mut new_state = state.clone();
+            let mut new_state = *state;
             new_state.increment();
             new_states.push(new_state);
 

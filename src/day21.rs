@@ -3,6 +3,7 @@ use std::{fmt::Display, process::Command, str::FromStr};
 use anyhow::Result;
 use aoc::{Runnable, Solution};
 use aoc_derive::Runner;
+use itertools::Itertools;
 use nom::{
     branch::alt,
     character::complete,
@@ -121,35 +122,33 @@ impl Expr {
 
 impl Solution for DaySolution {
     fn part1(&self, input: &str) -> Result<Box<dyn Display>> {
-        let mut js_lines = vec![];
+        let js_lines = input
+            .lines()
+            .map(|line| {
+                let (func, expr) = line.split_once(": ").unwrap();
 
-        for line in input.lines() {
-            let (func, expr) = line.split_once(": ").unwrap();
+                if let Ok(expr) = u32::from_str(expr) {
+                    return format!("function {}() {{ return {} }}", func, expr);
+                }
 
-            if let Ok(expr) = u32::from_str(expr) {
-                js_lines.push(format!("function {}() {{ return {}; }}", func, expr));
-                continue;
-            }
+                let expr = expr
+                    .split(' ')
+                    .map(|p| match (u32::from_str(p), p) {
+                        (Ok(num), _) => num.to_string(),
+                        (_, "+" | "-" | "*" | "/") => p.to_string(),
+                        _ => format!("{}()", p),
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" ");
 
-            let expr = expr
-                .split(' ')
-                .map(|p| match (u32::from_str(p), p) {
-                    (Ok(num), _) => num.to_string(),
-                    (_, "+" | "-" | "*" | "/") => p.to_string(),
-                    _ => format!("{}()", p),
-                })
-                .collect::<Vec<_>>()
-                .join(" ");
-
-            js_lines.push(format!("function {}() {{ return {}; }}", func, expr));
-        }
-
-        js_lines.push("console.log(root());".to_string());
-        let js_code = js_lines.join("\n");
+                format!("function {}() {{ return {} }}", func, expr)
+            })
+            .merge(vec!["console.log(root());".to_string()])
+            .collect::<Vec<_>>();
 
         let result = Command::new("node")
             .arg("-e")
-            .arg(js_code)
+            .arg(js_lines.join("\n"))
             .output()
             .map(|output| String::from_utf8(output.stdout))
             .map_err(|err| anyhow::anyhow!("Failed to run node: {}", err))??
@@ -160,76 +159,68 @@ impl Solution for DaySolution {
     }
 
     fn part2(&self, input: &str) -> Result<Box<dyn Display>> {
-        let mut js_lines = vec![];
+        let js_lines = input
+            .lines()
+            .map(|line| {
+                let (func, expr) = line.split_once(": ").unwrap();
 
-        for line in input.lines() {
-            let (func, expr) = line.split_once(": ").unwrap();
+                if func == "humn" {
+                    return format!("function {}() {{ return 'x'; }}", func);
+                }
 
-            if func == "humn" {
-                js_lines.push(format!("function {}() {{ return 'x'; }}", func));
-                continue;
-            }
+                if let Ok(expr) = u32::from_str(expr) {
+                    return format!("function {}() {{ return {}; }}", func, expr);
+                }
 
-            if let Ok(expr) = u32::from_str(expr) {
-                js_lines.push(format!("function {}() {{ return {}; }}", func, expr));
-                continue;
-            }
+                let expr = expr
+                    .split(' ')
+                    .map(|p| match (u32::from_str(p), p) {
+                        (Ok(num), _) => num.to_string(),
+                        (_, "+" | "-" | "*" | "/") => p.to_string(),
+                        _ => format!("{}()", p),
+                    })
+                    .collect::<Vec<_>>();
 
-            let expr = expr
-                .split(' ')
-                .map(|p| match (u32::from_str(p), p) {
-                    (Ok(num), _) => num.to_string(),
-                    (_, "+" | "-" | "*" | "/") => p.to_string(),
-                    _ => format!("{}()", p),
-                })
-                .collect::<Vec<_>>();
+                let (a, op, b) = (expr[0].clone(), expr[1].clone(), expr[2].clone());
 
-            let a = expr[0].clone();
-            let op = expr[1].clone();
-            let b = expr[2].clone();
+                if func == "root" {
+                    return format!("function {}() {{ return `${{{}}} = ${{{}}}` }}", func, a, b);
+                }
 
-            let expr = if func == "root" {
-                format!("return `${{{}}} = ${{{}}}`", a, b)
-            } else {
-                format!(
-                    "
-    let a = {}; let b = {};
-    if (a !== 'x' && typeof a !== 'number') a = '(' + a + ')';
-    if (b !== 'x' && typeof b !== 'number') b = '(' + b + ')';
+                let expr =  format!("
+                    let a = {}; let b = {};
+                    if (a !== 'x' && typeof a !== 'number') a = '(' + a + ')';
+                    if (b !== 'x' && typeof b !== 'number') b = '(' + b + ')';
+                
+                    return `${{a}} {} ${{b}}`",
+                    a, b, op);
 
-    return `${{a}} {} ${{b}}`",
-                    a, b, op
-                )
-            };
-
-            js_lines.push(format!("function {}() {{ {} }}", func, expr));
-        }
-
-        js_lines.push(
-            r#"
-
-let expr = root();
-while (true) {
-  let newExpr = expr.replace(/\((\d+)\s+([+\-*\/])\s+(\d+)\)/g, (_, a, op, b) => eval(`${a} ${op} ${b}`));
-  if (newExpr === expr) break;
-  expr = newExpr;
-}
-
-console.log(expr);"#
-                .to_string(),
-        );
-        let js_code = js_lines.join("\n");
+                format!("function {}() {{ {} }}", func, expr)
+            })
+            .merge(vec![
+                r#"
+                let expr = root();
+                while (true) {
+                let newExpr = expr.replace(/\((\d+)\s+([+\-*\/])\s+(\d+)\)/g, (_, a, op, b) => eval(`${a} ${op} ${b}`));
+                if (newExpr === expr) break;
+                expr = newExpr;
+                }
+                
+                console.log(expr);
+                "#.to_string()
+            ])
+            .collect::<Vec<_>>();
 
         let result = Command::new("node")
             .arg("-e")
-            .arg(js_code)
+            .arg(js_lines.join("\n"))
             .output()
             .map(|output| String::from_utf8(output.stdout))
             .map_err(|err| anyhow::anyhow!("Failed to run node: {}", err))??
             .replace(' ', "");
 
         let (first, second) = result.split_once('=').unwrap();
-        let (expr, value) = if first.contains("x") {
+        let (expr, value) = if first.contains('x') {
             (first, second)
         } else {
             (second, first)
