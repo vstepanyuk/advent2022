@@ -42,9 +42,9 @@ impl Solution for DaySolution {
 
         let result = Command::new("node")
             .arg("-e")
-            .arg(js_code.clone())
+            .arg(js_code)
             .output()
-            .map(|a| String::from_utf8(a.stdout))
+            .map(|output| String::from_utf8(output.stdout))
             .map_err(|err| anyhow::anyhow!("Failed to run node: {}", err))??;
 
         Ok(Box::new(result))
@@ -80,16 +80,7 @@ impl Solution for DaySolution {
             let b = expr[2].clone();
 
             let expr = if func == "root" {
-                format!(
-                    "
-    let a = {};
-    try {{ a = eval(a); }} catch {{}}
-    let b = {};
-    try {{ b = eval(b); }} catch {{}}
-                return `${{a}} = ${{b}}`
-            ",
-                    a, b
-                )
+                format!("return `${{{}}} = ${{{}}}`", a, b)
             } else {
                 format!(
                     "
@@ -127,9 +118,9 @@ console.log(expr);"#
 
         let result = Command::new("node")
             .arg("-e")
-            .arg(js_code.clone())
+            .arg(js_code)
             .output()
-            .map(|a| String::from_utf8(a.stdout))
+            .map(|output| String::from_utf8(output.stdout))
             .map_err(|err| anyhow::anyhow!("Failed to run node: {}", err))??;
 
         Ok(Box::new(result))
@@ -147,6 +138,6 @@ mod test {
         day21,
         Part2,
         "inputs/day21_demo.txt",
-        "(4 + (2 * (x - 3))) / 4 = 150\n"
+        "(4 + (2 * (x - 3))) / 4 = 30 * 5\n"
     );
 }
