@@ -66,9 +66,9 @@ impl Solution for DaySolution {
 
     fn part2(&self, input: &str) -> Result<Box<dyn Display>> {
         let mut monkeys = self.parse(input);
-        *monkeys.get_mut("humn").unwrap() = Operation::Number(Complex::new(0.0, 1.));
+        *monkeys.get_mut("humn").unwrap() = Operation::Number(Complex::new(0., 1.));
 
-        let (left, right) = match &monkeys["root"] {
+        let (left, right) = match monkeys.get("root").unwrap() {
             Operation::Add(a, b)
             | Operation::Divide(a, b)
             | Operation::Multiply(a, b)
@@ -81,7 +81,7 @@ impl Solution for DaySolution {
             Self::compute(&monkeys, right),
         );
 
-        let result = if result1.im == 0.0 {
+        let result = if result1.im == 0. {
             (result1.re - result2.re) / result2.im
         } else {
             (result2.re - result1.re) / result1.im
