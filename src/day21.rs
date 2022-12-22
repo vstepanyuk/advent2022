@@ -1,11 +1,9 @@
-use std::fmt::Display;
-
 use anyhow::Result;
 use aoc::{Runnable, Solution};
 use aoc_derive::Runner;
 use fxhash::FxHashMap as HashMap;
-
 use num::complex::Complex;
+use std::fmt::Display;
 
 #[derive(Runner)]
 #[aoc(file = "inputs/day21.txt")]
