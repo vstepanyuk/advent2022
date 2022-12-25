@@ -44,8 +44,8 @@ impl ToString for Snafu {
                 x => (x as u8 + b'0') as char,
             });
 
-            if digit >= 3 {
-                number += 5 - digit;
+            if digit > 2 {
+                number += 2;
             }
             number /= 5;
         }
@@ -66,6 +66,8 @@ impl Solution for DaySolution {
     }
 
     fn part2(&self, _input: &str) -> Result<Box<dyn Display>> {
+        println!("{:?}", Snafu(4).to_string());
+
         Ok(Box::new("doesn't exist"))
     }
 }
