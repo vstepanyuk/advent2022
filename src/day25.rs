@@ -30,8 +30,8 @@ impl FromStr for Snafu {
     }
 }
 
-impl ToString for Snafu {
-    fn to_string(&self) -> String {
+impl Display for Snafu {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut number = self.0;
         let mut result = String::new();
 
@@ -50,7 +50,12 @@ impl ToString for Snafu {
             number /= 5;
         }
 
-        result.chars().rev().collect::<String>()
+        result
+            .chars()
+            .rev()
+            .for_each(|c| write!(f, "{}", c).unwrap());
+
+        Ok(())
     }
 }
 
@@ -62,12 +67,10 @@ impl Solution for DaySolution {
             .map(|snafu| snafu.0)
             .sum::<i128>();
 
-        Ok(Box::new(Snafu(sum).to_string()))
+        Ok(Box::new(Snafu(sum)))
     }
 
     fn part2(&self, _input: &str) -> Result<Box<dyn Display>> {
-        println!("{:?}", Snafu(4).to_string());
-
         Ok(Box::new("doesn't exist"))
     }
 }
