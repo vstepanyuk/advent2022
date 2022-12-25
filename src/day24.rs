@@ -24,6 +24,13 @@ enum Direction {
     Right,
 }
 
+const DIRECTIONS: [Direction; 4] = [
+    Direction::Up,
+    Direction::Down,
+    Direction::Left,
+    Direction::Right,
+];
+
 impl Direction {
     fn from_char(c: char) -> Self {
         match c {
@@ -146,13 +153,6 @@ impl DaySolution {
         time: i32,
         cache: &HashMap<i32, HashSet<Position>>,
     ) -> i32 {
-        let directions = vec![
-            Direction::Up,
-            Direction::Down,
-            Direction::Left,
-            Direction::Right,
-        ];
-
         let cache_size = cache.len() as i32;
 
         let result = astar(
@@ -161,8 +161,8 @@ impl DaySolution {
                 let mut next = vec![];
                 let blizzard = cache.get(&((time + 1) % cache_size)).unwrap();
 
-                for d in directions.iter() {
-                    let possible = p + d.offset();
+                for direction in DIRECTIONS {
+                    let possible = p + direction.offset();
 
                     if possible == end {
                         next.push(((possible, time + 1), 1));
