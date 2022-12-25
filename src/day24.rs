@@ -1,9 +1,13 @@
-use std::{collections::HashSet, fmt::Display};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt::Display,
+};
 
 use anyhow::Result;
 use aoc::{Runnable, Solution};
 use aoc_derive::Runner;
-use pathfinding::prelude::dijkstra;
+use itertools::Itertools;
+use pathfinding::prelude::astar;
 
 #[derive(Runner)]
 #[aoc(file = "inputs/day24.txt")]
@@ -11,16 +15,12 @@ pub struct DaySolution {
     pub filename: &'static str,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, parse_display::Display, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 
 enum Direction {
-    #[display("^")]
     Up,
-    #[display("v")]
     Down,
-    #[display("<")]
     Left,
-    #[display(">")]
     Right,
 }
 
@@ -45,8 +45,7 @@ impl Direction {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, parse_display::Display, Hash)]
-#[display("{x},{y}")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct Position {
     x: i32,
     y: i32,
@@ -63,8 +62,7 @@ impl std::ops::Add for Position {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, parse_display::Display, Hash)]
-#[display("({position} {direction})")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct Blizzard {
     position: Position,
     direction: Direction,
@@ -74,19 +72,15 @@ impl Blizzard {
     fn tick(&mut self, max_x: i32, max_y: i32) {
         self.position = self.position + self.direction.offset();
 
-        if self.position.x == max_x && self.position.y == max_y + 1 {
-            return;
-        }
-
         if self.position.x <= 0 && self.direction == Direction::Left {
             self.position.x = max_x;
-        } else if self.position.x >= max_x + 1 && self.direction == Direction::Right {
+        } else if self.position.x > max_x && self.direction == Direction::Right {
             self.position.x = 1;
         }
 
         if self.position.y <= 0 && self.direction == Direction::Up {
             self.position.y = max_y;
-        } else if self.position.y >= max_y + 1 && self.direction == Direction::Down {
+        } else if self.position.y > max_y && self.direction == Direction::Down {
             self.position.y = 1;
         }
     }
@@ -124,10 +118,11 @@ impl DaySolution {
         &self,
         start: Position,
         end: Position,
-        blizzards: &Vec<Blizzard>,
+        blizzards: &[Blizzard],
         max_x: i32,
         max_y: i32,
-    ) -> (Vec<Blizzard>, i32) {
+        iteration: i32,
+    ) -> (i32, i32) {
         let directions = vec![
             Direction::Up,
             Direction::Down,
@@ -135,57 +130,64 @@ impl DaySolution {
             Direction::Right,
         ];
 
-        let result = dijkstra(
-            &(start, blizzards.clone()),
-            |(p, blizzards)| {
-                let mut next = vec![];
-                let new_blizzards = blizzards
-                    .iter()
-                    .map(|b| {
-                        let mut new = *b;
-                        new.tick(max_x, max_y);
-                        new
-                    })
-                    .collect::<Vec<_>>();
+        let mut cache = HashMap::new();
+        let mut blizzards = blizzards.to_owned();
 
-                let hashset = new_blizzards
-                    .iter()
-                    .map(|b| b.position)
-                    .collect::<HashSet<_>>();
+        for i in 0.. {
+            let hashset = blizzards.iter().map(|b| b.position).collect::<HashSet<_>>();
+
+            if cache.values().contains(&hashset) {
+                break;
+            }
+
+            cache.insert(i, hashset);
+            blizzards.iter_mut().for_each(|b| b.tick(max_x, max_y));
+        }
+        let cache_size = cache.len() as i32;
+
+        let result = astar(
+            &(start, iteration),
+            |&(p, time)| {
+                let mut next = vec![];
+                let blizzard = cache.get(&((time + 1) % cache_size)).unwrap();
 
                 for d in directions.iter() {
-                    let possible = *p + d.offset();
+                    let possible = p + d.offset();
 
                     if possible == end {
-                        next.push(((possible, new_blizzards.clone()), 1));
+                        next.push(((possible, time + 1), 1));
                         continue;
                     }
 
                     if possible.x <= 0
-                        || possible.x >= max_x + 1
+                        || possible.x > max_x
                         || possible.y <= 0
-                        || possible.y >= max_y + 1
+                        || possible.y > max_y
                     {
                         continue;
                     }
 
-                    if !hashset.contains(&possible) {
-                        next.push(((possible, new_blizzards.clone()), 1));
+                    if !blizzard.contains(&possible) {
+                        next.push(((possible, time + 1), 1));
                     }
                 }
 
-                if !hashset.contains(p) {
-                    next.push(((*p, new_blizzards.clone()), 1));
+                if !blizzard.contains(&p) {
+                    next.push(((p, time + 1), 1));
                 }
 
                 next
+            },
+            |(p, _)| {
+                // manhattan distance
+                (p.x - end.x).abs() + (p.y - end.y).abs() / 3
             },
             |&(p, _)| p == end,
         );
 
         let (path, cost) = result.unwrap();
 
-        (path.last().unwrap().1.clone(), cost)
+        (path.last().unwrap().1, cost)
     }
 }
 
@@ -199,7 +201,7 @@ impl Solution for DaySolution {
             y: max_y + 1,
         };
 
-        let (_, cost) = self.find_path(start, end, &blizzards, max_x, max_y);
+        let (_, cost) = self.find_path(start, end, &blizzards, max_x, max_y, 0);
         Ok(Box::new(cost))
     }
 
@@ -212,15 +214,11 @@ impl Solution for DaySolution {
             y: max_y + 1,
         };
 
-        let (blizzards, cost) = self.find_path(start, end, &blizzards, max_x, max_y);
+        let (iteration, cost) = self.find_path(start, end, &blizzards, max_x, max_y, 0);
+        let (iteration, cost2) = self.find_path(end, start, &blizzards, max_x, max_y, iteration);
+        let (_, cost3) = self.find_path(start, end, &blizzards, max_x, max_y, iteration);
 
-        dbg!(cost);
-
-        let (blizzards, cost2) = self.find_path(end, start, &blizzards, max_x, max_y);
-        dbg!(cost2);
-
-        let (_, cost3) = self.find_path(start, end, &blizzards, max_x, max_y);
-
+        // Ok(Box::new("AAA"))
         Ok(Box::new(cost + cost2 + cost3))
     }
 }
