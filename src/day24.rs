@@ -114,22 +114,12 @@ impl DaySolution {
         Ok((blizzards, (max_x, max_y)))
     }
 
-    fn find_path(
+    fn warmup_cache(
         &self,
-        start: Position,
-        end: Position,
         blizzards: &[Blizzard],
         max_x: i32,
         max_y: i32,
-        iteration: i32,
-    ) -> (i32, i32) {
-        let directions = vec![
-            Direction::Up,
-            Direction::Down,
-            Direction::Left,
-            Direction::Right,
-        ];
-
+    ) -> HashMap<i32, HashSet<Position>> {
         let mut cache = HashMap::new();
         let mut blizzards = blizzards.to_owned();
 
@@ -143,10 +133,30 @@ impl DaySolution {
             cache.insert(i, hashset);
             blizzards.iter_mut().for_each(|b| b.tick(max_x, max_y));
         }
+
+        cache
+    }
+
+    fn find_path(
+        &self,
+        start: Position,
+        end: Position,
+        max_x: i32,
+        max_y: i32,
+        time: i32,
+        cache: &HashMap<i32, HashSet<Position>>,
+    ) -> i32 {
+        let directions = vec![
+            Direction::Up,
+            Direction::Down,
+            Direction::Left,
+            Direction::Right,
+        ];
+
         let cache_size = cache.len() as i32;
 
         let result = astar(
-            &(start, iteration),
+            &(start, time),
             |&(p, time)| {
                 let mut next = vec![];
                 let blizzard = cache.get(&((time + 1) % cache_size)).unwrap();
@@ -157,9 +167,7 @@ impl DaySolution {
                     if possible == end {
                         next.push(((possible, time + 1), 1));
                         continue;
-                    }
-
-                    if possible.x <= 0
+                    } else if possible.x <= 0
                         || possible.x > max_x
                         || possible.y <= 0
                         || possible.y > max_y
@@ -185,41 +193,42 @@ impl DaySolution {
             |&(p, _)| p == end,
         );
 
-        let (path, cost) = result.unwrap();
+        let (_, cost) = result.unwrap();
+        cost
+    }
 
-        (path.last().unwrap().1, cost)
+    fn solve(&self, input: &str, count: usize) -> Result<i32> {
+        let (blizzards, (max_x, max_y)) = self.parse(input)?;
+        let cache = self.warmup_cache(&blizzards, max_x, max_y);
+
+        let start = Position { x: 1, y: 0 };
+        let end = Position {
+            x: max_x,
+            y: max_y + 1,
+        };
+
+        let (sum, _, _) =
+            std::iter::repeat(())
+                .take(count)
+                .fold((0, start, end), |(time, start, end), _| {
+                    (
+                        time + self.find_path(start, end, max_x, max_y, time, &cache),
+                        end,
+                        start,
+                    )
+                });
+
+        Ok(sum)
     }
 }
 
 impl Solution for DaySolution {
     fn part1(&self, input: &str) -> Result<Box<dyn Display>> {
-        let (blizzards, (max_x, max_y)) = self.parse(input)?;
-
-        let start = Position { x: 1, y: 0 };
-        let end = Position {
-            x: max_x,
-            y: max_y + 1,
-        };
-
-        let (_, cost) = self.find_path(start, end, &blizzards, max_x, max_y, 0);
-        Ok(Box::new(cost))
+        Ok(Box::new(self.solve(input, 1)?))
     }
 
     fn part2(&self, input: &str) -> Result<Box<dyn Display>> {
-        let (blizzards, (max_x, max_y)) = self.parse(input)?;
-
-        let start = Position { x: 1, y: 0 };
-        let end = Position {
-            x: max_x,
-            y: max_y + 1,
-        };
-
-        let (iteration, cost) = self.find_path(start, end, &blizzards, max_x, max_y, 0);
-        let (iteration, cost2) = self.find_path(end, start, &blizzards, max_x, max_y, iteration);
-        let (_, cost3) = self.find_path(start, end, &blizzards, max_x, max_y, iteration);
-
-        // Ok(Box::new("AAA"))
-        Ok(Box::new(cost + cost2 + cost3))
+        Ok(Box::new(self.solve(input, 3)?))
     }
 }
 
